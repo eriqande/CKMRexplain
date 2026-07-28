@@ -1,0 +1,24 @@
+Package: CKMRexplain
+Type: Package
+Title: Visual Explanations for Close-Kin Mark-Recapture Models
+Version: 0.1.0
+Authors@R: c(
+    person(
+      given = "Eric",
+      family = "Anderson",
+      email = "eriqande@gmail.com",
+      role = c("aut", "cre")
+    )
+  )
+Author: Eric Anderson [aut, cre]
+Maintainer: Eric Anderson <eriqande@gmail.com>
+Description: Build lightweight graph representations and visual explanations
+    for close-kin mark-recapture population models.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    ggplot2,
+    grid,
+    stats
+Config/roxygen2/version: 8.0.0
