@@ -264,6 +264,7 @@ draw_sample_nodes <- function(nodes) {
   if (nrow(nodes) == 0) {
     return(ggplot2::geom_blank())
   }
+  nodes$display_label <- ifelse(nodes$label == "sample", "n", nodes$label)
 
   list(
     ggplot2::geom_point(
@@ -277,7 +278,7 @@ draw_sample_nodes <- function(nodes) {
     ),
     ggplot2::geom_text(
       data = nodes,
-      ggplot2::aes(x = x, y = y, label = "n"),
+      ggplot2::aes(x = x, y = y, label = display_label),
       size = 3.2,
       fontface = "bold"
     )

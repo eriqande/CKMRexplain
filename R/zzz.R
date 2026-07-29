@@ -2,7 +2,7 @@
 # aesthetics. This keeps the plotting code readable while avoiding noisy
 # "no visible binding" notes.
 utils::globalVariables(c(
-  "fill_value", "label", "node_id", "sex",
+  "color", "display_label", "fill_value", "label", "node_id", "sex",
   "edge_alpha", "edge_width", "sex_label",
   "x", "x_end", "x_scaled", "x_start", "xmax", "xmin",
   "y", "y_end", "y_scaled", "y_start", "ymax", "ymin"

@@ -426,6 +426,152 @@ demo_age_time_model <- function(times = 0:2,
   model
 }
 
+demo_mhsp_path_model <- function() {
+  times <- 12:19
+  ages <- 1:8
+
+  model <- demo_age_time_model(
+    times = times,
+    ages = ages,
+    include_samples = FALSE
+  )
+
+  older_sample <- make_population_ids("F", "adult", 19, 7)
+  younger_sample <- make_population_ids("M", "adult", 17, 2)
+
+  model <- model |>
+    add_sampling(
+      from = older_sample,
+      sample = "sample_age7_t19",
+      label = "1"
+    ) |>
+    add_sampling(
+      from = younger_sample,
+      sample = "sample_age2_t17",
+      label = "1"
+    )
+
+  older_path <- c(
+    paste(
+      "recruitment",
+      "offspring_t12",
+      make_population_ids("F", "adult", 13, 1),
+      sep = "_"
+    ),
+    vapply(
+      1:6,
+      function(age) {
+        paste(
+          "survival",
+          make_population_ids("F", "adult", 12 + age, age),
+          make_population_ids("F", "adult", 13 + age, age + 1),
+          sep = "_"
+        )
+      },
+      character(1)
+    )
+  )
+
+  younger_path <- c(
+    paste(
+      "recruitment",
+      "offspring_t15",
+      make_population_ids("M", "adult", 16, 1),
+      sep = "_"
+    ),
+    paste(
+      "survival",
+      make_population_ids("M", "adult", 16, 1),
+      make_population_ids("M", "adult", 17, 2),
+      sep = "_"
+    )
+  )
+
+  attr(model, "highlight_edges") <- c(older_path, younger_path)
+  attr(model, "path_highlights") <- make_mhsp_maternal_paths(
+    first_birth_time = 12,
+    second_birth_time = 15,
+    ages = ages
+  )
+  attr(model, "selected_paths") <- paste0("maternal_", seq_len(5))
+  attr(model, "highlight_nodes") <- c("offspring_t12", "offspring_t15")
+  model
+}
+
+make_mhsp_maternal_paths <- function(first_birth_time,
+                                     second_birth_time,
+                                     ages) {
+  time_gap <- second_birth_time - first_birth_time
+  first_mother_ages <- ages[ages + time_gap <= max(ages)]
+  path_colors <- grDevices::rainbow(length(first_mother_ages))
+  rows <- list()
+  idx <- 1
+
+  for (i in seq_along(first_mother_ages)) {
+    first_age <- first_mother_ages[i]
+    second_age <- first_age + time_gap
+    path_id <- paste0("maternal_", i)
+    color <- path_colors[i]
+
+    first_mother <- make_population_ids("F", "adult", first_birth_time, first_age)
+    second_mother <- make_population_ids("F", "adult", second_birth_time, second_age)
+    first_mating <- paste0("mating_t", first_birth_time)
+    second_mating <- paste0("mating_t", second_birth_time)
+    first_offspring <- paste0("offspring_t", first_birth_time)
+    second_offspring <- paste0("offspring_t", second_birth_time)
+
+    path_edges <- c(
+      paste("repro_in", first_mother, first_mating, sep = "_"),
+      paste("birth_out", first_mating, first_offspring, sep = "_"),
+      vapply(
+        seq_len(time_gap),
+        function(step) {
+          paste(
+            "survival",
+            make_population_ids(
+              "F", "adult",
+              first_birth_time + step - 1,
+              first_age + step - 1
+            ),
+            make_population_ids(
+              "F", "adult",
+              first_birth_time + step,
+              first_age + step
+            ),
+            sep = "_"
+          )
+        },
+        character(1)
+      ),
+      paste("repro_in", second_mother, second_mating, sep = "_"),
+      paste("birth_out", second_mating, second_offspring, sep = "_")
+    )
+
+    roles <- c(
+      "maternal_input",
+      "birth_output",
+      rep("maternal_survival", time_gap),
+      "maternal_input",
+      "birth_output"
+    )
+
+    rows[[idx]] <- data.frame(
+      path_id = path_id,
+      path_label = paste0(
+        "mother age ", first_age, " at t", first_birth_time,
+        " to age ", second_age, " at t", second_birth_time
+      ),
+      edge_id = path_edges,
+      edge_role = roles,
+      color = color,
+      stringsAsFactors = FALSE
+    )
+    idx <- idx + 1
+  }
+
+  do.call(rbind, rows)
+}
+
 normal_covariate <- function(mean, sd, n = 80) {
   # Store a deterministic curve, not random draws, so examples and tests are
   # reproducible. The plotting layer can draw this as a tiny density curve.

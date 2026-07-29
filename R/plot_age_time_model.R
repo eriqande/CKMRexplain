@@ -6,13 +6,21 @@
 
 plot_ckmr_age_time <- function(model,
                                overlay = c("none", "abundance", "fecundity"),
-                               show_reproduction_inputs = TRUE) {
+                               show_reproduction_inputs = TRUE,
+                               highlight_edges = attr(model, "highlight_edges", exact = TRUE),
+                               path_highlights = attr(model, "path_highlights", exact = TRUE),
+                               selected_paths = attr(model, "selected_paths", exact = TRUE)) {
   stopifnot_ckmr_model(model)
   overlay <- match.arg(overlay)
 
   arranged <- layout_ckmr_age_time(model)
   nodes <- arranged$nodes
   edges <- arranged$edges
+  if (is.null(highlight_edges)) {
+    highlight_edges <- character()
+  }
+  edges$highlight <- edges$edge_id %in% highlight_edges
+  path_edges <- make_age_time_path_edges(edges, path_highlights, selected_paths)
 
   population_nodes <- nodes[nodes$node_type == "population", ]
   reproduction_nodes <- nodes[nodes$node_type == "reproduction", ]
@@ -26,6 +34,7 @@ plot_ckmr_age_time <- function(model,
     draw_age_time_survival_edges(edges) +
     draw_age_time_recruitment_edges(edges) +
     draw_age_time_reproduction_edges(edges) +
+    draw_age_time_path_highlights(path_edges) +
     draw_sampling_edges(edges) +
     draw_age_time_population_nodes(population_nodes, overlay) +
     draw_reproduction_nodes(reproduction_nodes) +
@@ -133,25 +142,25 @@ layout_ckmr_age_time <- function(model) {
 
   edges <- merge(
     edges,
-    nodes[, c("node_id", "x", "y", "width", "height", "node_type")],
+    nodes[, c("node_id", "x", "y", "width", "height", "node_type", "sex", "age")],
     by.x = "from",
     by.y = "node_id",
     all.x = TRUE,
     sort = FALSE
   )
-  names(edges)[names(edges) %in% c("x", "y", "width", "height", "node_type")] <-
-    c("x_from", "y_from", "width_from", "height_from", "type_from")
+  names(edges)[names(edges) %in% c("x", "y", "width", "height", "node_type", "sex", "age")] <-
+    c("x_from", "y_from", "width_from", "height_from", "type_from", "sex_from", "age_from")
 
   edges <- merge(
     edges,
-    nodes[, c("node_id", "x", "y", "width", "height", "node_type")],
+    nodes[, c("node_id", "x", "y", "width", "height", "node_type", "sex", "age")],
     by.x = "to",
     by.y = "node_id",
     all.x = TRUE,
     sort = FALSE
   )
-  names(edges)[names(edges) %in% c("x", "y", "width", "height", "node_type")] <-
-    c("x_to", "y_to", "width_to", "height_to", "type_to")
+  names(edges)[names(edges) %in% c("x", "y", "width", "height", "node_type", "sex", "age")] <-
+    c("x_to", "y_to", "width_to", "height_to", "type_to", "sex_to", "age_to")
 
   edges <- add_age_time_edge_anchors(edges)
 
@@ -196,6 +205,17 @@ add_age_time_edge_anchors <- function(edges) {
   edges$y_start[repro_input] <- edges$y_from[repro_input] - edges$height_from[repro_input] / 2
   edges$x_end[repro_input] <- edges$x_to[repro_input]
   edges$y_end[repro_input] <- edges$y_to[repro_input] + edges$height_to[repro_input] / 2
+
+  repro_population <- repro_input & edges$type_from == "population"
+  if (any(repro_population)) {
+    max_age <- max(edges$age_from[repro_population], na.rm = TRUE)
+    age_midpoint <- (min(edges$age_from[repro_population], na.rm = TRUE) + max_age) / 2
+    age_offset <- (edges$age_from[repro_population] - age_midpoint) / max(1, max_age)
+    sex_direction <- ifelse(edges$sex_from[repro_population] == "F", -1, 1)
+    lane_offset <- sex_direction * age_offset * 0.12
+    edges$x_start[repro_population] <- edges$x_start[repro_population] + lane_offset
+    edges$x_end[repro_population] <- edges$x_end[repro_population] + lane_offset * 0.35
+  }
 
   edges$x_start[birth_output] <- edges$x_from[birth_output]
   edges$y_start[birth_output] <- edges$y_from[birth_output] - edges$height_from[birth_output] / 2
@@ -244,29 +264,55 @@ draw_age_time_population_nodes <- function(nodes, overlay) {
 
 draw_age_time_survival_edges <- function(edges) {
   survival_edges <- edges[edges$edge_type == "survival", ]
+  base_edges <- survival_edges[!survival_edges$highlight, ]
+  highlight_edges <- survival_edges[survival_edges$highlight, ]
 
-  ggplot2::geom_segment(
-    data = survival_edges,
-    ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
-    color = "#2f6df6",
-    linewidth = 0.45,
-    alpha = 0.70,
-    lineend = "round",
-    arrow = grid::arrow(length = grid::unit(0.055, "inches"), type = "closed")
+  list(
+    ggplot2::geom_segment(
+      data = base_edges,
+      ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+      color = "#2f6df6",
+      linewidth = 0.45,
+      alpha = 0.70,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.055, "inches"), type = "closed")
+    ),
+    ggplot2::geom_segment(
+      data = highlight_edges,
+      ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+      color = "black",
+      linewidth = 1.65,
+      alpha = 0.95,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.075, "inches"), type = "closed")
+    )
   )
 }
 
 draw_age_time_recruitment_edges <- function(edges) {
   recruitment_edges <- edges[edges$edge_type == "recruitment", ]
+  base_edges <- recruitment_edges[!recruitment_edges$highlight, ]
+  highlight_edges <- recruitment_edges[recruitment_edges$highlight, ]
 
-  ggplot2::geom_segment(
-    data = recruitment_edges,
-    ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
-    color = "#7a4cc2",
-    linewidth = 0.65,
-    alpha = 0.78,
-    lineend = "round",
-    arrow = grid::arrow(length = grid::unit(0.060, "inches"), type = "closed")
+  list(
+    ggplot2::geom_segment(
+      data = base_edges,
+      ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+      color = "#7a4cc2",
+      linewidth = 0.65,
+      alpha = 0.78,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.060, "inches"), type = "closed")
+    ),
+    ggplot2::geom_segment(
+      data = highlight_edges,
+      ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+      color = "black",
+      linewidth = 2.05,
+      alpha = 0.96,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.085, "inches"), type = "closed")
+    )
   )
 }
 
@@ -284,6 +330,65 @@ draw_age_time_reproduction_edges <- function(edges) {
     color = "#d9368b",
     lineend = "round",
     arrow = grid::arrow(length = grid::unit(0.055, "inches"), type = "closed")
+  )
+}
+
+make_age_time_path_edges <- function(edges, path_highlights, selected_paths) {
+  if (is.null(path_highlights) || nrow(path_highlights) == 0) {
+    return(data.frame())
+  }
+
+  if (is.null(selected_paths)) {
+    selected_paths <- unique(path_highlights$path_id)
+  }
+
+  path_highlights <- path_highlights[path_highlights$path_id %in% selected_paths, ]
+  if (nrow(path_highlights) == 0) {
+    return(data.frame())
+  }
+
+  path_highlights$.path_order <- seq_len(nrow(path_highlights))
+  path_edges <- merge(
+    path_highlights,
+    edges,
+    by = "edge_id",
+    all.x = FALSE,
+    all.y = FALSE,
+    sort = FALSE
+  )
+  path_edges[order(path_edges$.path_order), ]
+}
+
+draw_age_time_path_highlights <- function(edges) {
+  if (nrow(edges) == 0) {
+    return(ggplot2::geom_blank())
+  }
+
+  birth_edges <- edges[edges$edge_role == "birth_output", ]
+  parent_edges <- edges[edges$edge_role != "birth_output", ]
+
+  list(
+    ggplot2::geom_segment(
+      data = birth_edges,
+      ggplot2::aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+      color = "#b51f73",
+      linewidth = 1.85,
+      alpha = 0.94,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.070, "inches"), type = "closed")
+    ),
+    ggplot2::geom_segment(
+      data = parent_edges,
+      ggplot2::aes(
+        x = x_start, y = y_start, xend = x_end, yend = y_end,
+        color = color
+      ),
+      linewidth = 1.55,
+      alpha = 0.96,
+      lineend = "round",
+      arrow = grid::arrow(length = grid::unit(0.070, "inches"), type = "closed")
+    ),
+    ggplot2::scale_color_identity()
   )
 }
 

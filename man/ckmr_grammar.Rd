@@ -7,6 +7,7 @@
 \alias{add_sampling}
 \alias{add_survival}
 \alias{demo_age_time_model}
+\alias{demo_mhsp_path_model}
 \alias{demo_two_stage_po}
 \alias{layout_ckmr_model}
 \alias{normal_covariate}
@@ -48,6 +49,8 @@ add_survival(model, from, to, label = "", survival = NA_real_)
 
 demo_age_time_model(times = 0:2, ages = 1:8, include_samples = TRUE)
 
+demo_mhsp_path_model()
+
 demo_two_stage_po(include_size = TRUE)
 
 layout_ckmr_model(model, layout = "two_stage_po")
@@ -57,7 +60,10 @@ normal_covariate(mean, sd, n = 80)
 plot_ckmr_age_time(
   model,
   overlay = c("none", "abundance", "fecundity"),
-  show_reproduction_inputs = TRUE
+  show_reproduction_inputs = TRUE,
+  highlight_edges = attr(model, "highlight_edges", exact = TRUE),
+  path_highlights = attr(model, "path_highlights", exact = TRUE),
+  selected_paths = attr(model, "selected_paths", exact = TRUE)
 )
 
 plot_ckmr_model(
@@ -92,6 +98,9 @@ plot_ckmr_model(
 \item{mean, sd, n}{Parameters used to create a deterministic normal covariate curve.}
 \item{overlay}{Visual overlay to draw on population nodes.}
 \item{show_reproduction_inputs}{Whether to show all age-specific inputs to the mating boxes.}
+\item{highlight_edges}{Optional edge identifiers to draw more heavily.}
+\item{path_highlights}{Optional path catalog with path IDs, edge IDs, edge roles, and colors.}
+\item{selected_paths}{Optional path IDs to draw from the path catalog.}
 }
 \description{
 These functions define the first lightweight graph grammar for CKMRexplain.
