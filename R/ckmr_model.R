@@ -498,6 +498,166 @@ demo_mhsp_path_model <- function() {
   model
 }
 
+demo_half_thiatic_path_model <- function(parent_birth_times = 12:14) {
+  times <- 12:19
+  ages <- 1:8
+
+  model <- demo_age_time_model(
+    times = times,
+    ages = ages,
+    include_samples = FALSE
+  )
+
+  older_sample <- make_population_ids("F", "adult", 19, 7)
+  younger_sample <- make_population_ids("M", "adult", 17, 2)
+
+  model <- model |>
+    add_sampling(
+      from = older_sample,
+      sample = "sample_age7_t19",
+      label = "1"
+    ) |>
+    add_sampling(
+      from = younger_sample,
+      sample = "sample_age2_t17",
+      label = "1"
+    )
+
+  older_path <- c(
+    paste(
+      "recruitment",
+      "offspring_t12",
+      make_population_ids("F", "adult", 13, 1),
+      sep = "_"
+    ),
+    vapply(
+      1:6,
+      function(age) {
+        paste(
+          "survival",
+          make_population_ids("F", "adult", 12 + age, age),
+          make_population_ids("F", "adult", 13 + age, age + 1),
+          sep = "_"
+        )
+      },
+      character(1)
+    )
+  )
+
+  younger_path <- c(
+    paste(
+      "recruitment",
+      "offspring_t15",
+      make_population_ids("M", "adult", 16, 1),
+      sep = "_"
+    ),
+    paste(
+      "survival",
+      make_population_ids("M", "adult", 16, 1),
+      make_population_ids("M", "adult", 17, 2),
+      sep = "_"
+    )
+  )
+
+  path_highlights <- make_half_thiatic_maternal_paths(
+    aunt_birth_time = 12,
+    parent_birth_times = parent_birth_times,
+    niece_birth_time = 15,
+    ages = ages
+  )
+
+  attr(model, "highlight_edges") <- c(older_path, younger_path)
+  attr(model, "path_highlights") <- path_highlights
+  attr(model, "selected_paths") <- unique(path_highlights$path_id)
+  attr(model, "highlight_nodes") <- unique(c(
+    "offspring_t12",
+    paste0("offspring_t", parent_birth_times),
+    "offspring_t15"
+  ))
+  model
+}
+
+demo_half_thiatic_younger_uncle_path_model <- function(parent_birth_times = 9:11) {
+  times <- 8:19
+  ages <- 1:8
+
+  model <- demo_age_time_model(
+    times = times,
+    ages = ages,
+    include_samples = FALSE
+  )
+
+  niece_sample <- make_population_ids("F", "adult", 19, 7)
+  uncle_sample <- make_population_ids("M", "adult", 17, 2)
+
+  model <- model |>
+    add_sampling(
+      from = niece_sample,
+      sample = "sample_niece_age7_t19",
+      label = "1"
+    ) |>
+    add_sampling(
+      from = uncle_sample,
+      sample = "sample_uncle_age2_t17",
+      label = "1"
+    )
+
+  path_highlights <- make_half_thiatic_maternal_paths(
+    aunt_birth_time = 15,
+    parent_birth_times = parent_birth_times,
+    niece_birth_time = 12,
+    ages = ages
+  )
+
+  attr(model, "highlight_edges") <- c(
+    make_sample_birth_trace_edges(
+      birth_time = 12,
+      sample_time = 19,
+      sample_age = 7,
+      sex = "F"
+    ),
+    make_sample_birth_trace_edges(
+      birth_time = 15,
+      sample_time = 17,
+      sample_age = 2,
+      sex = "M"
+    )
+  )
+  attr(model, "path_highlights") <- path_highlights
+  attr(model, "selected_paths") <- unique(path_highlights$path_id)
+  attr(model, "highlight_nodes") <- unique(c(
+    "offspring_t12",
+    paste0("offspring_t", parent_birth_times),
+    "offspring_t15"
+  ))
+  model
+}
+
+make_sample_birth_trace_edges <- function(birth_time, sample_time, sample_age, sex) {
+  recruit_time <- birth_time + 1
+  recruit_edge <- paste(
+    "recruitment",
+    paste0("offspring_t", birth_time),
+    make_population_ids(sex, "adult", recruit_time, 1),
+    sep = "_"
+  )
+
+  survival_edges <- vapply(
+    seq_len(sample_age - 1),
+    function(age) {
+      paste(
+        "survival",
+        make_population_ids(sex, "adult", birth_time + age, age),
+        make_population_ids(sex, "adult", birth_time + age + 1, age + 1),
+        sep = "_"
+      )
+    },
+    character(1)
+  )
+
+  c(recruit_edge, survival_edges)
+}
+
 make_mhsp_maternal_paths <- function(first_birth_time,
                                      second_birth_time,
                                      ages) {
@@ -564,6 +724,208 @@ make_mhsp_maternal_paths <- function(first_birth_time,
       edge_id = path_edges,
       edge_role = roles,
       color = color,
+      linetype = "solid",
+      stringsAsFactors = FALSE
+    )
+    idx <- idx + 1
+  }
+
+  do.call(rbind, rows)
+}
+
+make_half_thiatic_maternal_paths <- function(aunt_birth_time,
+                                             parent_birth_times,
+                                             niece_birth_time,
+                                             ages) {
+  parent_birth_times <- sort(unique(parent_birth_times))
+  if (niece_birth_time > aunt_birth_time) {
+    parent_birth_times <- parent_birth_times[
+      parent_birth_times >= aunt_birth_time &
+        parent_birth_times < niece_birth_time
+    ]
+  } else {
+    parent_birth_times <- parent_birth_times[
+      parent_birth_times < niece_birth_time
+    ]
+  }
+
+  path_colors <- stats::setNames(grDevices::rainbow(length(ages)), ages)
+  teal_colors <- stats::setNames(
+    grDevices::colorRampPalette(c("#00b7ad", "#006d70"))(length(parent_birth_times)),
+    parent_birth_times
+  )
+  rows <- list()
+  idx <- 1
+
+  for (parent_birth_time in parent_birth_times) {
+    ancestor_start_time <- min(aunt_birth_time, parent_birth_time)
+    ancestor_end_time <- max(aunt_birth_time, parent_birth_time)
+    ancestor_time_gap <- ancestor_end_time - ancestor_start_time
+    first_grandmother_ages <- ages[ages + ancestor_time_gap <= max(ages)]
+
+    for (i in seq_along(first_grandmother_ages)) {
+      first_age <- first_grandmother_ages[i]
+      ancestor_end_age <- first_age + ancestor_time_gap
+      path_id <- paste0("grandmother_t", parent_birth_time, "_", i)
+
+      ancestor_start <- make_population_ids(
+        "F", "adult", ancestor_start_time, first_age
+      )
+      ancestor_end <- make_population_ids(
+        "F", "adult", ancestor_end_time, ancestor_end_age
+      )
+      aunt_grandmother <- if (aunt_birth_time == ancestor_start_time) {
+        ancestor_start
+      } else {
+        ancestor_end
+      }
+      parent_grandmother <- if (parent_birth_time == ancestor_start_time) {
+        ancestor_start
+      } else {
+        ancestor_end
+      }
+      aunt_age <- if (aunt_birth_time == ancestor_start_time) {
+        first_age
+      } else {
+        ancestor_end_age
+      }
+      parent_age <- if (parent_birth_time == ancestor_start_time) {
+        first_age
+      } else {
+        ancestor_end_age
+      }
+      color <- unname(path_colors[as.character(aunt_age)])
+
+      ancestor_survival <- vapply(
+        seq_len(ancestor_time_gap),
+        function(step) {
+          paste(
+            "survival",
+            make_population_ids(
+              "F", "adult",
+              ancestor_start_time + step - 1,
+              first_age + step - 1
+            ),
+            make_population_ids(
+              "F", "adult",
+              ancestor_start_time + step,
+              first_age + step
+            ),
+            sep = "_"
+          )
+        },
+        character(1)
+      )
+
+      rows[[idx]] <- data.frame(
+        path_id = path_id,
+        path_label = paste0(
+          "grandmother age ", aunt_age, " at t", aunt_birth_time,
+          " and age ", parent_age, " at t", parent_birth_time
+        ),
+        edge_id = c(
+          paste(
+            "repro_in",
+            aunt_grandmother,
+            paste0("mating_t", aunt_birth_time),
+            sep = "_"
+          ),
+          paste(
+            "birth_out",
+            paste0("mating_t", aunt_birth_time),
+            paste0("offspring_t", aunt_birth_time),
+            sep = "_"
+          ),
+          ancestor_survival,
+          paste(
+            "repro_in",
+            parent_grandmother,
+            paste0("mating_t", parent_birth_time),
+            sep = "_"
+          ),
+          paste(
+            "birth_out",
+            paste0("mating_t", parent_birth_time),
+            paste0("offspring_t", parent_birth_time),
+            sep = "_"
+          )
+        ),
+        edge_role = c(
+          "ancestor_input",
+          "birth_output",
+          rep("ancestor_survival", length(ancestor_survival)),
+          "ancestor_input",
+          "birth_output"
+        ),
+        color = color,
+        linetype = "solid",
+        stringsAsFactors = FALSE
+      )
+      idx <- idx + 1
+    }
+  }
+
+  for (parent_birth_time in parent_birth_times) {
+    parent_age_at_reproduction <- niece_birth_time - parent_birth_time
+    parent_mother_at_reproduction <- make_population_ids(
+      "F", "adult", niece_birth_time, parent_age_at_reproduction
+    )
+    intervening_survival <- vapply(
+      seq_len(parent_age_at_reproduction - 1),
+      function(step) {
+        paste(
+          "survival",
+          make_population_ids("F", "adult", parent_birth_time + step, step),
+          make_population_ids("F", "adult", parent_birth_time + step + 1, step + 1),
+          sep = "_"
+        )
+      },
+      character(1)
+    )
+    intervening_edges <- c(
+      paste(
+        "recruitment",
+        paste0("offspring_t", parent_birth_time),
+        make_population_ids("F", "adult", parent_birth_time + 1, min(ages)),
+        sep = "_"
+      ),
+      intervening_survival,
+      paste(
+        "repro_in",
+        parent_mother_at_reproduction,
+        paste0("mating_t", niece_birth_time),
+        sep = "_"
+      ),
+      paste(
+        "birth_out",
+        paste0("mating_t", niece_birth_time),
+        paste0("offspring_t", niece_birth_time),
+        sep = "_"
+      )
+    )
+    intervening_roles <- c(
+      "intervening_lineage",
+      rep("intervening_lineage", length(intervening_survival)),
+      "intervening_input",
+      "birth_output"
+    )
+
+    rows[[idx]] <- data.frame(
+      path_id = paste0("intervening_mother_t", parent_birth_time),
+      path_label = paste0(
+        "intervening mother born at t", parent_birth_time,
+        " reproduces at t", niece_birth_time
+      ),
+      edge_id = intervening_edges,
+      edge_role = intervening_roles,
+      color = unname(teal_colors[as.character(parent_birth_time)]),
+      linetype = ifelse(
+        intervening_roles == "intervening_lineage" &
+          (parent_birth_time == aunt_birth_time ||
+            niece_birth_time < aunt_birth_time),
+        "33",
+        "solid"
+      ),
       stringsAsFactors = FALSE
     )
     idx <- idx + 1

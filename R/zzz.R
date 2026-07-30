@@ -3,7 +3,7 @@
 # "no visible binding" notes.
 utils::globalVariables(c(
   "color", "display_label", "fill_value", "label", "node_id", "sex",
-  "edge_alpha", "edge_width", "sex_label",
+  "edge_alpha", "edge_width", "linetype", "sex_label",
   "x", "x_end", "x_scaled", "x_start", "xmax", "xmin",
   "y", "y_end", "y_scaled", "y_start", "ymax", "ymin"
 ))

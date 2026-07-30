@@ -7,6 +7,8 @@
 \alias{add_sampling}
 \alias{add_survival}
 \alias{demo_age_time_model}
+\alias{demo_half_thiatic_path_model}
+\alias{demo_half_thiatic_younger_uncle_path_model}
 \alias{demo_mhsp_path_model}
 \alias{demo_two_stage_po}
 \alias{layout_ckmr_model}
@@ -48,6 +50,10 @@ add_sampling(model, from, sample = NULL, label = "sample", fraction = NA_real_)
 add_survival(model, from, to, label = "", survival = NA_real_)
 
 demo_age_time_model(times = 0:2, ages = 1:8, include_samples = TRUE)
+
+demo_half_thiatic_path_model(parent_birth_times = 12:14)
+
+demo_half_thiatic_younger_uncle_path_model(parent_birth_times = 9:11)
 
 demo_mhsp_path_model()
 
@@ -92,6 +98,7 @@ plot_ckmr_model(
 \item{recruitment}{Optional recruitment edge weight.}
 \item{survival}{Optional survival edge weight.}
 \item{times}{Time values for the age-time demo model.}
+\item{parent_birth_times}{Intervening parent birth years to show in the half-thiatic demo.}
 \item{include_samples}{Whether to include a small number of sample nodes in the age-time demo.}
 \item{include_size}{Whether the demo model includes adult length distributions.}
 \item{layout}{Layout name. Currently only \code{"two_stage_po"} is implemented.}

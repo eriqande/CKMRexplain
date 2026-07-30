@@ -346,6 +346,9 @@ make_age_time_path_edges <- function(edges, path_highlights, selected_paths) {
   if (nrow(path_highlights) == 0) {
     return(data.frame())
   }
+  if (!"linetype" %in% names(path_highlights)) {
+    path_highlights$linetype <- "solid"
+  }
 
   path_highlights$.path_order <- seq_len(nrow(path_highlights))
   path_edges <- merge(
@@ -381,14 +384,16 @@ draw_age_time_path_highlights <- function(edges) {
       data = parent_edges,
       ggplot2::aes(
         x = x_start, y = y_start, xend = x_end, yend = y_end,
-        color = color
+        color = color,
+        linetype = linetype
       ),
       linewidth = 1.55,
       alpha = 0.96,
       lineend = "round",
       arrow = grid::arrow(length = grid::unit(0.070, "inches"), type = "closed")
     ),
-    ggplot2::scale_color_identity()
+    ggplot2::scale_color_identity(),
+    ggplot2::scale_linetype_identity()
   )
 }
 
