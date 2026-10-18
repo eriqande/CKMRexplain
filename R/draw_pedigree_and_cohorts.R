@@ -78,17 +78,17 @@
 draw_pedigree_and_cohorts <- function(
   Am = 10, Af = 12, Mm = 3, Mf = 6,
   cA = 56, cB = 60, aA = 5, aB = 3, n = 3,
-  xPosBar = 0, CohortBoxWidth = 1, CohortBoxTextPad = 0.05,
+  xPosBar = 0, CohortBoxWidth = 1, CohortBoxTextPad = 0.1,
   xPosA = NULL, xPosB = NULL, xPedSep = 16,
   sexA = "F", sexB = "F", nodeWidth = NULL, nodeHeight = NULL,
   showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B) || !is.null(sample_times) || !is.null(shared_H11), showGrid = TRUE,
   maleColour = "#2166AC", femaleColour = "#B2182B", pedigreeColour = NULL,
   SampleSepFactor = 2, generationFade = 0.18, showGuides = TRUE,
-  cohortBarLinewidth = 0.18, cohortBarBold = FALSE, generationPalette = "RdBu",
+  cohortBarLinewidth = 0.35, cohortBarBold = FALSE, generationPalette = "RdBu",
   focal_indiv_A = NULL, focal_cohort_A = NULL,
   focal_indiv_B = NULL, focal_cohort_B = NULL,
   focalFill = "#FF00FF", reachableFill = "grey88",
-  cohortBarBlackText = FALSE, sample_times = NULL,
+  cohortBarBlackText = TRUE, sample_times = NULL,
   samplingArrowLinewidth = 1.4 * cohortBarLinewidth, samplingArrowColour = "orange",
   shared_H11 = NULL, sharedH11Linewidth = 1.4 * cohortBarLinewidth
 ) {
