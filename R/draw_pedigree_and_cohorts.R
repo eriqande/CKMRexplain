@@ -10,7 +10,8 @@
 #' @inheritParams highlight_pedigree_cohorts
 #' @param CohortBoxTextPad Fraction of each cohort cell reserved on each edge.
 #' @param showCohorts Overlay possible cohorts on a pale reference pedigree.
-#' Defaults to TRUE if either focal individual is specified, otherwise FALSE.
+#' Defaults to TRUE if a focal individual, sample_times, or shared_H11 is specified,
+#' otherwise FALSE.
 #' @param focalFill,reachableFill Background colours for focal cohort cells and
 #' their reachable ancestral cells. Focal numbers are black for contrast.
 #' @param showGrid Draw horizontal grid lines at cohort multiples of five,
@@ -33,6 +34,31 @@
 #' @param cohortBarBold Use bold numbers in all cohort bars.
 #' @param cohortBarBlackText Use black cohort numbers while retaining the
 #' sex- and generation-specific bar colours. Defaults to FALSE.
+#' @param sample_times Optional data frame or tibble with columns `indiv`,
+#' `cohort`, and `age`. Each row marks sampling at birth cohort plus age.
+#' Individuals use the same names as focal selections. Ages must be nonnegative
+#' integers, and birth cohorts must be present in the individual's cohort bar.
+#' Supplying this table displays cohort bars by default. Arrows run from the
+#' birth-cell center to one bar-width beyond the outside edge of the bar,
+#' left for A's pedigree or right for B's,
+#' ending at the sampling year's vertical position.
+#' @param samplingArrowLinewidth Sampling-arrow line width, defaulting to
+#' 1.4 times cohortBarLinewidth.
+#' @param samplingArrowColour Sampling-arrow colour, defaulting to orange.
+#' @param shared_H11 Optional data frame or tibble with `focalA`, `focalB`,
+#' `cohortA`, `cohortB`, `ancestorA`, and `ancestorB` columns. Ancestors must be
+#' same-sex immediate parents of their respective focal individuals. The optional
+#' list column `ancestor_cohorts` selects candidate birth cohorts; omit it, or
+#' use NULL for a row, to select all mutually feasible cohorts. Colored solid
+#' lines show alternative descent paths, matching dotted lines identify shared
+#' ancestors, and parallel colored lines retain each alternative through the
+#' survival interval. Black junction rectangles are one-third of a cohort cell
+#' high and one-quarter of a bar wide. Lines meet these junctions at equally
+#' spaced heights, from one-sixth of a cell above center to one-sixth below;
+#' a single candidate uses the center.
+#' This is a schematic of possibilities, not a confirmed relationship. Focal
+#' shading is controlled separately. Supplying this table shows cohort bars by default.
+#' @param sharedH11Linewidth Width of shared-ancestor and survival lines.
 #' @param showGuides Draw thin dashed vertical guides through each pedigree
 #' member, underneath all other layers.
 #' @param pedigreeColour Colour of pedigree outlines, labels and edges. NULL
@@ -44,6 +70,9 @@
 #' draw_pedigree_and_cohorts(showCohorts = TRUE)
 #' draw_pedigree_and_cohorts(focal_indiv_A = "A-2", focal_cohort_A = 51,
 #'   focal_indiv_B = "B-2", focal_cohort_B = 54)
+#' shared <- data.frame(focalA = "A", focalB = "B", cohortA = 56, cohortB = 60,
+#'   ancestorA = "A-2", ancestorB = "B-2")
+#' draw_pedigree_and_cohorts(shared_H11 = shared, cohortBarBlackText = TRUE)
 #' @md
 #' @export
 draw_pedigree_and_cohorts <- function(
@@ -52,14 +81,16 @@ draw_pedigree_and_cohorts <- function(
   xPosBar = 0, CohortBoxWidth = 1, CohortBoxTextPad = 0.05,
   xPosA = NULL, xPosB = NULL, xPedSep = 16,
   sexA = "F", sexB = "F", nodeWidth = NULL, nodeHeight = NULL,
-  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B), showGrid = TRUE,
+  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B) || !is.null(sample_times) || !is.null(shared_H11), showGrid = TRUE,
   maleColour = "#2166AC", femaleColour = "#B2182B", pedigreeColour = NULL,
   SampleSepFactor = 2, generationFade = 0.18, showGuides = TRUE,
   cohortBarLinewidth = 0.18, cohortBarBold = FALSE, generationPalette = "RdBu",
   focal_indiv_A = NULL, focal_cohort_A = NULL,
   focal_indiv_B = NULL, focal_cohort_B = NULL,
   focalFill = "#FF00FF", reachableFill = "grey88",
-  cohortBarBlackText = FALSE
+  cohortBarBlackText = FALSE, sample_times = NULL,
+  samplingArrowLinewidth = 1.4 * cohortBarLinewidth, samplingArrowColour = "orange",
+  shared_H11 = NULL, sharedH11Linewidth = 1.4 * cohortBarLinewidth
 ) {
   if (!is.numeric(generationFade) || length(generationFade) != 1L ||
       !is.finite(generationFade) || generationFade < 0 || generationFade > 1) {
@@ -71,6 +102,10 @@ draw_pedigree_and_cohorts <- function(
   if (!is.logical(cohortBarBlackText) || length(cohortBarBlackText) != 1L ||
       is.na(cohortBarBlackText)) {
     stop("`cohortBarBlackText` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.numeric(samplingArrowLinewidth) || length(samplingArrowLinewidth) != 1L ||
+      !is.finite(samplingArrowLinewidth) || samplingArrowLinewidth <= 0) {
+    stop("`samplingArrowLinewidth` must be one positive finite number.", call. = FALSE)
   }
   palette_colours <- NULL
   if (!is.null(generationPalette)) {
@@ -89,6 +124,31 @@ draw_pedigree_and_cohorts <- function(
   layout <- highlight_pedigree_cohorts(layout,
     focal_indiv_A = focal_indiv_A, focal_cohort_A = focal_cohort_A,
     focal_indiv_B = focal_indiv_B, focal_cohort_B = focal_cohort_B)
+  sampling_arrows <- pedigree_sampling_arrows(layout, sample_times)
+  if (!is.numeric(sharedH11Linewidth) || length(sharedH11Linewidth) != 1L ||
+      !is.finite(sharedH11Linewidth) || sharedH11Linewidth <= 0) {
+    stop("`sharedH11Linewidth` must be one positive finite number.", call. = FALSE)
+  }
+  shared_relationships <- pedigree_shared_H11(layout, shared_H11)
+  for (relation in shared_relationships) {
+    layout$xlim <- range(c(layout$xlim, relation$points$x - CohortBoxWidth / 4,
+      relation$points$x + CohortBoxWidth / 4))
+  }
+  if (nrow(sampling_arrows)) {
+    latest <- max(sampling_arrows$sampling_cohort)
+    if (latest > layout$BarLate) {
+      extra <- layout$reference_bar[rep(1L, latest - layout$BarLate), ]
+      extra$cohort <- seq.int(layout$BarLate + 1, latest)
+      extra$ymid <- layout$BarLate - extra$cohort
+      layout$reference_bar <- rbind(layout$reference_bar, extra)
+      grid <- data.frame(cohort = extra$cohort[extra$cohort %% 5 == 0])
+      grid$y <- layout$BarLate - grid$cohort
+      grid$major <- grid$cohort %% 10 == 0
+      layout$grid <- rbind(layout$grid, grid)
+      layout$ylim[1] <- min(layout$ylim[1], layout$BarLate - latest - 1)
+    }
+    layout$xlim <- range(c(layout$xlim, sampling_arrows$xend))
+  }
   if (is.null(pedigreeColour)) {
     pedigreeColour <- if (showCohorts) "grey70" else "black"
   }
@@ -137,8 +197,17 @@ draw_pedigree_and_cohorts <- function(
       }
     }
   }
-  plot + draw_layer_cohort_bar(layout$reference_bar, pad = CohortBoxTextPad,
-    fill = "white", linewidth = cohortBarLinewidth, fontface = fontface) +
+  plot <- plot + draw_layer_cohort_bar(layout$reference_bar, pad = CohortBoxTextPad,
+    fill = "white", linewidth = cohortBarLinewidth, fontface = fontface)
+  if (nrow(sampling_arrows)) {
+    plot <- plot + ggplot2::geom_segment(data = sampling_arrows,
+      ggplot2::aes(x = x, y = y, xend = xend, yend = yend),
+      colour = samplingArrowColour, linewidth = samplingArrowLinewidth,
+      arrow = grid::arrow(length = grid::unit(1.5, "mm"), type = "closed"),
+      inherit.aes = FALSE)
+  }
+  plot <- plot + pedigree_shared_H11_layers(layout, shared_relationships, sharedH11Linewidth)
+  plot +
     ggplot2::coord_fixed(ratio = layout$aspect_ratio, xlim = layout$xlim,
       ylim = layout$ylim, expand = FALSE) +
     ggplot2::theme_void() +

@@ -24,7 +24,8 @@ draw_pedigree_and_cohorts(
   sexB = "F",
   nodeWidth = NULL,
   nodeHeight = NULL,
-  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B),
+  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B) ||
+    !is.null(sample_times) || !is.null(shared_H11),
   showGrid = TRUE,
   maleColour = "#2166AC",
   femaleColour = "#B2182B",
@@ -41,7 +42,12 @@ draw_pedigree_and_cohorts(
   focal_cohort_B = NULL,
   focalFill = "#FF00FF",
   reachableFill = "grey88",
-  cohortBarBlackText = FALSE
+  cohortBarBlackText = FALSE,
+  sample_times = NULL,
+  samplingArrowLinewidth = 1.4 * cohortBarLinewidth,
+  samplingArrowColour = "orange",
+  shared_H11 = NULL,
+  sharedH11Linewidth = 1.4 * cohortBarLinewidth
 )
 }
 \arguments{
@@ -72,7 +78,8 @@ other tree; if both are NULL the trees are placed to the right of the reference.
 from the horizontal and vertical spacing.}
 
 \item{showCohorts}{Overlay possible cohorts on a pale reference pedigree.
-Defaults to TRUE if either focal individual is specified, otherwise FALSE.}
+Defaults to TRUE if a focal individual, sample_times, or shared_H11 is specified,
+otherwise FALSE.}
 
 \item{showGrid}{Draw horizontal grid lines at cohort multiples of five,
 with stronger lines at multiples of ten. Axes are always hidden.}
@@ -123,6 +130,36 @@ their reachable ancestral cells. Focal numbers are black for contrast.}
 
 \item{cohortBarBlackText}{Use black cohort numbers while retaining the
 sex- and generation-specific bar colours. Defaults to FALSE.}
+
+\item{sample_times}{Optional data frame or tibble with columns \code{indiv},
+\code{cohort}, and \code{age}. Each row marks sampling at birth cohort plus age.
+Individuals use the same names as focal selections. Ages must be nonnegative
+integers, and birth cohorts must be present in the individual's cohort bar.
+Supplying this table displays cohort bars by default. Arrows run from the
+birth-cell center to one bar-width beyond the outside edge of the bar,
+left for A's pedigree or right for B's,
+ending at the sampling year's vertical position.}
+
+\item{samplingArrowLinewidth}{Sampling-arrow line width, defaulting to
+1.4 times cohortBarLinewidth.}
+
+\item{samplingArrowColour}{Sampling-arrow colour, defaulting to orange.}
+
+\item{shared_H11}{Optional data frame or tibble with \code{focalA}, \code{focalB},
+\code{cohortA}, \code{cohortB}, \code{ancestorA}, and \code{ancestorB} columns. Ancestors must be
+same-sex immediate parents of their respective focal individuals. The optional
+list column \code{ancestor_cohorts} selects candidate birth cohorts; omit it, or
+use NULL for a row, to select all mutually feasible cohorts. Colored solid
+lines show alternative descent paths, matching dotted lines identify shared
+ancestors, and parallel colored lines retain each alternative through the
+survival interval. Black junction rectangles are one-third of a cohort cell
+high and one-quarter of a bar wide. Lines meet these junctions at equally
+spaced heights, from one-sixth of a cell above center to one-sixth below;
+a single candidate uses the center.
+This is a schematic of possibilities, not a confirmed relationship. Focal
+shading is controlled separately. Supplying this table shows cohort bars by default.}
+
+\item{sharedH11Linewidth}{Width of shared-ancestor and survival lines.}
 }
 \value{
 A ggplot object. Use \code{\link[=layout_pedigree_and_cohorts]{layout_pedigree_and_cohorts()}} to obtain the
@@ -140,4 +177,7 @@ draw_pedigree_and_cohorts()
 draw_pedigree_and_cohorts(showCohorts = TRUE)
 draw_pedigree_and_cohorts(focal_indiv_A = "A-2", focal_cohort_A = 51,
   focal_indiv_B = "B-2", focal_cohort_B = 54)
+shared <- data.frame(focalA = "A", focalB = "B", cohortA = 56, cohortB = 60,
+  ancestorA = "A-2", ancestorB = "B-2")
+draw_pedigree_and_cohorts(shared_H11 = shared, cohortBarBlackText = TRUE)
 }
