@@ -1,0 +1,108 @@
+---
+title: "Calculating Multigenerational Kinship Probabilities in Age Structured Models"
+output: pdf_document
+date: "2026-10-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\input{/Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/notation.tex}
+
+My initial foray into the realm of calculating multignerational kinship probabilities
+ended with some nice recurrence relations for calculating sums of probabilities along
+different branches of pedigrees.  However, this was a coarse-grained marginal calculation
+and did not lend itself to properly calculating the first-hitting probabilities needed.
+That effort had started with an elaborate notation scheme for denoting ancestral paths.
+That notation, unfortunately, does not extend well to the multiple lineages that must be
+treated in a pedigree.  Therefore, we are going back to tried and true visual representation
+(not simply notation!) to help us thing through the calculations and make them efficient.
+
+The main visual apparatus I have been playing with is a combination: a pedigree 
+combined with visual respresentations of the ancestral cohorts reachable from any
+particular cohorts.  In putting this together it became clear that we really need
+to keep track of all the branches of the pedigree going up, because the order in which
+the sexes of the ancestors arrive makes a difference.  The easiest way to see that
+is to have males and females with different reproductive schedules.  To that end,
+for an example life history I have one in which males mature at age 3 and have a max
+age of 10, while females mature at 6 and have a max age of 12.  The plotting functions
+are implemented in my package `CKMRexplain' for the moment. Let's begin:
+```{r}
+library(CKMRexplain)
+```
+
+## A Handy Visual Representation
+
+Any time we are tracing lineages back through a pedigree, we have a pedigree.  In
+fact, for CKMR and calculating pairwise kinship probabilities, we always have
+two pedigrees---one for each member of the pair.  We refer to these pair members
+as $A$ and $B$.  Here is a representation of those two pedigrees.
+```{r}
+draw_pedigree_and_cohorts(showCohorts = FALSE, sexA = "M")
+```
+
+That shows two simple pedigrees that go back $n=3$ generations: one pedigree for $A$
+on the left and one for $B$ on the right. Males are represented by squares and
+females are represented by circles. The ancestors are
+named by numbers (following the CKMRpop paper) and we assume that neither $A$ nor
+$B$ is inbred.  To the left
+of the figure is a reference bar that shows cohorts (birth-years). Note that more
+recent cohorts are toward the bottom and cohorts from earlier in time are toward
+the top.  $A$ and $B$ are positioned vertically at their birth years (56 and 60,
+respectively), but above that the ancestors are simply distributed vertically so
+that the top row is at the same place, and generations above either $A$ or $B$ are
+spread evenly in the intervening space.  Each ancestor occupies a specific place
+in the $x$-direction denoted by a dashed line.  This x-position is where we will
+place additional ``cohort bars'' to indicate the the possible cohorts that these
+ancestors could have belonged to, given the cohorts of $A$ and $B$ and age range
+over which males and females can reproduce.  
+
+The following plot includes those cohort bars.  The bars for the female ancestors
+are denoted in reddish colors and for the male ancestors in blue-ish colors.  As
+we proceed back in time further in the pedigree the colors get lighter as an aid
+to see which cohort bars represent parents, grandparents and great-grandparents
+when scanning from left to right. 
+```{r}
+draw_pedigree_and_cohorts(
+  showCohorts = TRUE,
+  sexA = "M",
+  cohortBarBlackText = TRUE,
+  cohortBarLinewidth = 0.35,
+  CohortBoxTextPad = 0.1
+)
+```
+
+This is an incredibly helpful representation.  Staring at it for a moment, one
+realizes that $A$ and $B$ have the possibility to share an ancestor every time
+any male ancestor of $A$ is from the same cohort as any male ancestor from $B$,
+and also when any female ancestor from $A$ is from the same cohort as any female
+ancestor from $B$.  For example, if $A$'s father was from cohort 50, then simply
+following the gray line at 50 across to $B$'s ancestors, we see that there is
+the possibility that $A$'s father was the same as ancestor 2, 4, 8, or 6 of $B$.
+(Whoa! This looks like things could explode combinatorically...we will have to
+organize our calculations carefully, if possible).
+
+
+
+And while we are at it, we can also note that $A$ would have
+the possibility of being a direct ancestor of $B$ whenever $B$ has an ancestor
+from the same cohort as the cohort of $A$.  
+
+So, this representation tells us where the chances are for the two samples
+to have a common ancestor, and the key is they would have an ancestor from the
+same cohort.  However, that is not the only part of the equation, because the
+samples (and their subsequent ancestors) may come from different cohorts themselves,
+and this means that we have to deal with the ancestor surviving from one to the other.
+
+We are going to borrow some notation from my previous effort, but we will expand it.
+Let $\HH{a}{b}(c_A, c_B)$ denote the event that $A$ and $B$ from cohorts $c_A$
+and $c_B$ respectively share a single most-recent common ancestor that is $a$ generations
+back in the past from $A$ and $b$ generations back from $B$. It is possible for $a$ or
+$b$ to be zero, which implies a direct descent relationship.
+
+First we will derive the probability of the direct descent relationship
+$\HH{0}{1}(c_A, c_B)$, which is simply a parent-offspring pair.  This probability
+requires that we know the sampling time of $A$, which we denote $d_A$ (d for ``DNA-time'').
+
+
