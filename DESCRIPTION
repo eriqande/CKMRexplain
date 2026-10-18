@@ -18,7 +18,9 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+    ggfittext,
     ggplot2,
     grid,
+    RColorBrewer,
     stats
 Config/roxygen2/version: 8.0.0

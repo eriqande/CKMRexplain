@@ -69,7 +69,10 @@ plot_ckmr_age_time(
   show_reproduction_inputs = TRUE,
   highlight_edges = attr(model, "highlight_edges", exact = TRUE),
   path_highlights = attr(model, "path_highlights", exact = TRUE),
-  selected_paths = attr(model, "selected_paths", exact = TRUE)
+  selected_paths = attr(model, "selected_paths", exact = TRUE),
+  age_label_offset = 0.85,
+  time_label_offset = 0.55,
+  sex_label_offset = 0.55
 )
 
 plot_ckmr_model(
@@ -108,6 +111,7 @@ plot_ckmr_model(
 \item{highlight_edges}{Optional edge identifiers to draw more heavily.}
 \item{path_highlights}{Optional path catalog with path IDs, edge IDs, edge roles, and colors.}
 \item{selected_paths}{Optional path IDs to draw from the path catalog.}
+\item{age_label_offset, time_label_offset, sex_label_offset}{Distances used to place age, time, and sex labels away from the plotted nodes.}
 }
 \description{
 These functions define the first lightweight graph grammar for CKMRexplain.

@@ -9,11 +9,19 @@ plot_ckmr_age_time <- function(model,
                                show_reproduction_inputs = TRUE,
                                highlight_edges = attr(model, "highlight_edges", exact = TRUE),
                                path_highlights = attr(model, "path_highlights", exact = TRUE),
-                               selected_paths = attr(model, "selected_paths", exact = TRUE)) {
+                               selected_paths = attr(model, "selected_paths", exact = TRUE),
+                               age_label_offset = 0.85,
+                               time_label_offset = 0.55,
+                               sex_label_offset = 0.55) {
   stopifnot_ckmr_model(model)
   overlay <- match.arg(overlay)
 
-  arranged <- layout_ckmr_age_time(model)
+  arranged <- layout_ckmr_age_time(
+    model,
+    age_label_offset = age_label_offset,
+    time_label_offset = time_label_offset,
+    sex_label_offset = sex_label_offset
+  )
   nodes <- arranged$nodes
   edges <- arranged$edges
   if (is.null(highlight_edges)) {
@@ -56,7 +64,10 @@ plot_ckmr_age_time <- function(model,
     )
 }
 
-layout_ckmr_age_time <- function(model) {
+layout_ckmr_age_time <- function(model,
+                                 age_label_offset = 0.85,
+                                 time_label_offset = 0.55,
+                                 sex_label_offset = 0.55) {
   nodes <- model$nodes
   edges <- model$edges
 
@@ -164,15 +175,26 @@ layout_ckmr_age_time <- function(model) {
 
   edges <- add_age_time_edge_anchors(edges)
 
-  axis_labels <- make_age_time_axis_labels(times, ages, time_x, age_y)
+  axis_labels <- make_age_time_axis_labels(
+    times,
+    ages,
+    time_x,
+    age_y,
+    age_label_offset = age_label_offset,
+    time_label_offset = time_label_offset,
+    sex_label_offset = sex_label_offset
+  )
 
   list(
     nodes = nodes,
     edges = edges,
     offspring_shapes = make_offspring_shapes(nodes),
     axis_labels = axis_labels,
-    xlim = range(time_x) + c(-1.0, 1.0),
-    ylim = c(-0.42, max(age_y) + 0.70)
+    xlim = range(time_x) + c(-max(1.0, age_label_offset + 0.25), 1.0),
+    ylim = c(
+      -max(0.42, time_label_offset + 0.18),
+      max(age_y) + max(0.70, sex_label_offset + 0.20)
+    )
   )
 }
 
@@ -419,17 +441,23 @@ draw_age_time_axes <- function(axis_labels) {
   )
 }
 
-make_age_time_axis_labels <- function(times, ages, time_x, age_y) {
+make_age_time_axis_labels <- function(times,
+                                      ages,
+                                      time_x,
+                                      age_y,
+                                      age_label_offset = 0.85,
+                                      time_label_offset = 0.55,
+                                      sex_label_offset = 0.55) {
   first_x <- min(time_x)
   data_times <- data.frame(
     x = unname(time_x),
-    y = -0.30,
+    y = -time_label_offset,
     label = paste0("t", times),
     stringsAsFactors = FALSE
   )
 
   data_ages <- data.frame(
-    x = first_x - 0.58,
+    x = first_x - age_label_offset,
     y = unname(age_y),
     label = paste0("age ", ages),
     stringsAsFactors = FALSE
@@ -437,7 +465,7 @@ make_age_time_axis_labels <- function(times, ages, time_x, age_y) {
 
   data_sexes <- data.frame(
     x = c(first_x - 0.21, first_x + 0.21),
-    y = max(age_y) + 0.42,
+    y = max(age_y) + sex_label_offset,
     label = c("F", "M"),
     stringsAsFactors = FALSE
   )

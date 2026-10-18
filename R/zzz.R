@@ -5,5 +5,7 @@ utils::globalVariables(c(
   "color", "display_label", "fill_value", "label", "node_id", "sex",
   "edge_alpha", "edge_width", "linetype", "sex_label",
   "x", "x_end", "x_scaled", "x_start", "xmax", "xmin",
-  "y", "y_end", "y_scaled", "y_start", "ymax", "ymin"
+  "y", "y_end", "y_scaled", "y_start", "ymax", "ymin",
+  "cohort", "id", "xend", "xhi", "xlo", "yend", "ymid",
+  "text_xmin", "text_xmax", "text_ymin", "text_ymax"
 ))
