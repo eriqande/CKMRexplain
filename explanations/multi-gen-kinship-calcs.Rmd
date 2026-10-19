@@ -2,6 +2,8 @@
 title: "Calculating Multigenerational Kinship Probabilities in Age Structured Models"
 output: pdf_document
 date: "2026-10-17"
+header-includes:
+  - \usepackage{wasysym}
 ---
 
 ```{r setup, include=FALSE}
@@ -10,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 \input{/Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/notation.tex}
 
+
 My initial foray into the realm of calculating multignerational kinship probabilities
 ended with some nice recurrence relations for calculating sums of probabilities along
 different branches of pedigrees.  However, this was a coarse-grained marginal calculation
@@ -17,11 +20,11 @@ and did not lend itself to properly calculating the first-hitting probabilities 
 That effort had started with an elaborate notation scheme for denoting ancestral paths.
 That notation, unfortunately, does not extend well to the multiple lineages that must be
 treated in a pedigree.  Therefore, we are going back to tried and true visual representation
-(not simply notation!) to help us thing through the calculations and make them efficient.
+(not simply notation!) to help us think through the calculations and make them efficient.
 
 The main visual apparatus I have been playing with is a combination: a pedigree 
-combined with visual respresentations of the ancestral cohorts reachable from any
-particular cohorts.  In putting this together it became clear that we really need
+combined with visual respresentations of the ancestral cohorts reachable from the cohorts
+of the two samples, $A$ and $B$.  In putting this together it became clear that we really need
 to keep track of all the branches of the pedigree going up, because the order in which
 the sexes of the ancestors arrive makes a difference.  The easiest way to see that
 is to have males and females with different reproductive schedules.  To that end,
@@ -54,7 +57,7 @@ respectively), but above that the ancestors are simply distributed vertically so
 that the top row is at the same place, and generations above either $A$ or $B$ are
 spread evenly in the intervening space.  Each ancestor occupies a specific place
 in the $x$-direction denoted by a dashed line.  This x-position is where we will
-place additional ``cohort bars'' to indicate the the possible cohorts that these
+place additional ``cohort bars'' to indicate the possible cohorts that these
 ancestors could have belonged to, given the cohorts of $A$ and $B$ and age range
 over which males and females can reproduce.  
 
@@ -66,10 +69,7 @@ when scanning from left to right.
 ```{r}
 draw_pedigree_and_cohorts(
   showCohorts = TRUE,
-  sexA = "M",
-  cohortBarBlackText = TRUE,
-  cohortBarLinewidth = 0.35,
-  CohortBoxTextPad = 0.1
+  sexA = "M"
 )
 ```
 
@@ -90,10 +90,12 @@ the possibility of being a direct ancestor of $B$ whenever $B$ has an ancestor
 from the same cohort as the cohort of $A$.  
 
 So, this representation tells us where the chances are for the two samples
-to have a common ancestor, and the key is they would have an ancestor from the
-same cohort.  However, that is not the only part of the equation, because the
+to have a common ancestor: any time a male of $A$ is of the same cohort as a male
+ancestor of $B$ or any time a female ancestor of $A$ is from the same cohort as
+a female ancestor of $B$.  However, that is not the only part of the equation, because the
 samples (and their subsequent ancestors) may come from different cohorts themselves,
-and this means that we have to deal with the ancestor surviving from one to the other.
+and this means that we have to deal with the ancestor surviving during the years
+intervening the cohorts of its descendants.
 
 We are going to borrow some notation from my previous effort, but we will expand it.
 Let $\HH{a}{b}(c_A, c_B)$ denote the event that $A$ and $B$ from cohorts $c_A$
@@ -101,8 +103,167 @@ and $c_B$ respectively share a single most-recent common ancestor that is $a$ ge
 back in the past from $A$ and $b$ generations back from $B$. It is possible for $a$ or
 $b$ to be zero, which implies a direct descent relationship.
 
-First we will derive the probability of the direct descent relationship
-$\HH{0}{1}(c_A, c_B)$, which is simply a parent-offspring pair.  This probability
-requires that we know the sampling time of $A$, which we denote $d_A$ (d for ``DNA-time'').
+First, we consider the sex-specific $\HH{1}{1}$ event that we will denote $\HH{1}{1}(c_A, c_B;s)$,
+where $s$ denotes the sex of the shared ancestor.  It can be either 0 for female or 1 for male,
+or where convenient we might use $\f$ and $\m$.  This
+is the half-sibling kinship probability, and it will come up again and again.
+To make it simpler we will just focus on $A$ an $B$ and one generation of ancestors
+for this first round. The diagram looks like this:
+```{r}
+shared_H11 <- tibble::tibble(
+  focalA = "A", focalB = "B",
+  cohortA = 56, cohortB = 60,
+  ancestorA = "A-2", ancestorB = "B-2"
+)
+
+draw_pedigree_and_cohorts(
+  shared_H11 = shared_H11
+)
+```
+
+One of the interesting things about this is that (barring weird spatial structure
+which we are ignoring for the moment (but which we might be able to deal with) and
+other weird effects) is that this has to apply to any pair of individuals from
+similar cohorts (and similar covariates, I suppose.  That's where things get weird
+but we can sort of integrate over all that).
+
+As a consequence, we can think about any ancestor pair also having an $\HH{1}{1}$
+relationship.  For example, what about A-3 and B-4, if they were assumed to have
+been born in cohorts 44 and 42, respectively, could share female ancestors, one
+generation back from each of A-7 and B-9.  That looks like:
+```{r}
+shared_H11_2 <- tibble::tibble(
+  focalA = "A-3", focalB = "B-4",
+  cohortA = 44, cohortB = 42,
+  ancestorA = "A-7", ancestorB = "B-9"
+)
+
+draw_pedigree_and_cohorts(
+  shared_H11 = shared_H11_2,
+  focal_indiv_A = "A-3",  # color those cells fuschia, too
+  focal_cohort_A = 44,
+  focal_indiv_B = "B-4",
+  focal_cohort_B = 42
+)
+```
+
+
+
+This is super promising.  The main thing to see here is that the probability of being
+a maternal half sibling given that the pair members are ancestors born in cohorts $c_1$ and $c_2$
+does not depend on how you got to those ancestors in your lines of descent (again, barring
+spatial stuff---or perhaps some other weird covariates that are inherited across generations).
+What this means is that the half-sibling calculation is going to be the same for
+every pair of cohorts $(c_1, c_2)$ regardless of which ancestor that is in.  This is
+actually super powerful.  It means that we can calculate those $P(\HH{1}{1}(c_1,c_2;s))$
+probs for all possible $(c_1, c_2)$ pairs, and then we can use the for every intermediate
+ancestor.  
+
+Now, when we are tracking lineages going back up through the pedigree, we need to consider the
+joint and conditional probabilities that a pair shares a parent of sex $s$, or not, and that
+the parents' cohorts are explicitly $c^*_A$ and $c^*_B$.  (Note, $A$ and $B$ don't really
+have to be samples here---we can just use $A$ and $B$ to denote two individuals from the
+population.)
+
+So, let
+$$
+P\bigl(\HH{1}{1}(c_A,c_B;s) = 1\bigl)
+$$
+be the probability that $A$ ane $B$ share a sex-$s$ parent.  This is actually the
+sum over all possible shared parent cohorts $c^*_A = c^*_B$ of the joint probability
+that the that parents are of the same cohort $c^*$ and that they are one and the
+same (i.e., the shared parents).  I think I will try for some new notation for this.
+Let $I(A^1_s)$ be the identity of the sex-$s$ parent of A, one generation back.  We
+could extend this to be like $I(A^2_{s_2s_1})$ which is the identity of ancestor
+two generations back that is of sex $s_2$, whose intervening descendant is of sex
+$s_1$.  So, for example, we could write $I(A^2_{\m\f})$ for A's maternal grandfather.
+Also, let $C(A^1_s)$ be the cohort sex-$s$ ancestor one generation back from $A$.
+So, we can express the half-sib probability with shared parent of sex $s$ as:
+$$
+P\bigl( I(A^1_s) =  I(B^1_s)\bigr)
+$$
+which can be written as a sum over the joint probability of the cohorts and shared identities
+of the parents of $A$ and $B$:
+$$
+P\bigl( I(A^1_s) =  I(B^1_s)\bigr) = \sum_{c} P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\bigr)
+$$
+where the sum in $c$ is over the intersection of feasible cohorts for the the sex-$s$
+parents of $A$ and $B$.
+
+That is typically as far as it goes---you just calculate the HSP prob and you are done.
+But, when we are trying to think through a general calculation for multigenerational
+kinship probabilities, there are a few more terms that will be very important.
+
+One term that isn't really used for the multigenerational bit is the conditional
+probability that the cohort of the shared parent is $c$ given that pair does 
+share a sex-$s$ parent.  This follows simply from the law of conditional
+probability:
+$$
+P\bigl(C(A^1_s) = c,~C(B^1_s) = c \mid I(A^1_s) =  I(B^1_s)\bigr) =
+\frac{P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\bigr)}
+{P\bigl( I(A^1_s) =  I(B^1_s)\bigr)}
+$$
+I say that this term is not much used for the multigenerational kinship because
+if we find that a pair is an HSP, then we don't go any further back in the pedigree
+to see if they are more distantly related.  However, it is worth writing that down
+because it gets us primed up to understand the much more important conditional
+probability for our purposes, which is the conditionaly probability that the sex-$s$ parent of
+$A$ was from cohort $c_A$, and the sex-$s$ parent of $B$ was from cohort $c_B$ given
+that $A$ ane $B$ do not share a sex-$s$ parent.  This is actually the probability that
+we need for weighting ancestral cohorts when we  continue extending the lineages back into past 
+generations, so it is pretty important.  We can write this as:
+$$
+P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B \mid I(A^1_s) \neq I(B^1_s)\bigr) =
+\frac{P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B,~I(A^1_s) \neq  I(B^1_s)\bigr)}
+{1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)}
+$$
+(Note that $P\bigl( I(A^1_s) \neq  I(B^1_s)\bigr)) = 1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)$, so
+we write it that way in the denominator.  Also, note that if $c_A\neq c_B$ then
+$I(A^1_s) \neq I(B^1_s)$ with probability 1.  So we have that this is essentially
+$$
+=\begin{cases}
+\frac{P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B\bigr)}
+{1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)}~~~~&\mbox{when}~~c_A \neq c_B  \\
+\frac{P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) \neq I(B^1_s)\bigr)}
+{1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)}~~~~&\mbox{when}~~c_A = c_B = c
+\end{cases}
+$$
+The $P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B\bigr)$ term is just the product of
+the ERROs for those cohorts of parents.  So, we know how to get those.  When
+$c_A = c_B = c$ and the identities of the parents are not the same, that can occur
+because either because the parent of the first born did not survive (so we would have
+a $1 - \prod \lambda$ term in there, OR because it did survive, but was not the
+parent of the second born, in which case it has a $\prod \lambda$ multiplied by
+a $\frac{N-1}{N}$ term.  We can verify these to make sure that unnormalized conditional
+probabilities (i.e., the joint probabilities) sum to 1 over all $c_A$ and $c_B$ and
+over $I(A^1_s) = I(B^1_s)$ and $I(A^1_s) \neq I(B^1_s)$
+
+
+I like this notation and where it is going.  But sometime around now is when we
+need to start asserting that only a sinble lineage will coalesce at any particular
+generational level (unless it is an F-type relationship).  We can start with
+male and female HSPs and see how the probabilities work out.  I think that this is
+going to be a crucial assumption/assertion to avoid combinatorially blowing up
+when we get lots of overlapping lineages.  It is also a reasonable one.  
+
+
+
+Below is a figure that shows a sampling arrow in the diagram.
+```{r}
+sample_times <- tibble::tibble(
+  indiv = c("A", "B-4"),
+  cohort = c(56, 44),
+  age = c(5, 3)
+)
+
+draw_pedigree_and_cohorts(
+  sample_times = sample_times,
+  cohortBarBlackText = TRUE
+)
+```
+
+
+
+
 
 
