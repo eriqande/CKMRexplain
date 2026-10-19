@@ -8,6 +8,7 @@ header-includes:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
 ```
 
 \input{/Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/notation.tex}
@@ -172,12 +173,15 @@ $$
 be the probability that $A$ ane $B$ share a sex-$s$ parent.  This is actually the
 sum over all possible shared parent cohorts $c^*_A = c^*_B$ of the joint probability
 that the that parents are of the same cohort $c^*$ and that they are one and the
-same (i.e., the shared parents).  I think I will try for some new notation for this.
+same (i.e., the shared parents).  
+
+
+I think I will try for some new notation for this.
 Let $I(A^1_s)$ be the identity of the sex-$s$ parent of A, one generation back.  We
-could extend this to be like $I(A^2_{s_2s_1})$ which is the identity of ancestor
+could extend this to be like $I(A^2_{s_2s_1})$ which is the identity of the ancestor
 two generations back that is of sex $s_2$, whose intervening descendant is of sex
 $s_1$.  So, for example, we could write $I(A^2_{\m\f})$ for A's maternal grandfather.
-Also, let $C(A^1_s)$ be the cohort sex-$s$ ancestor one generation back from $A$.
+Also, let $C(A^1_s)$ be the cohort of the sex-$s$ ancestor one generation back from $A$.
 So, we can express the half-sib probability with shared parent of sex $s$ as:
 $$
 P\bigl( I(A^1_s) =  I(B^1_s)\bigr)
@@ -185,7 +189,7 @@ $$
 which can be written as a sum over the joint probability of the cohorts and shared identities
 of the parents of $A$ and $B$:
 $$
-P\bigl( I(A^1_s) =  I(B^1_s)\bigr) = \sum_{c} P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\bigr)
+P\bigl( I(A^1_s) =  I(B^1_s)\bigr) = \sum_{c \in \{C(A^1_s)\} \cap \{C(B^1_s)\}} P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\bigr)
 $$
 where the sum in $c$ is over the intersection of feasible cohorts for the the sex-$s$
 parents of $A$ and $B$.
@@ -207,17 +211,17 @@ I say that this term is not much used for the multigenerational kinship because
 if we find that a pair is an HSP, then we don't go any further back in the pedigree
 to see if they are more distantly related.  However, it is worth writing that down
 because it gets us primed up to understand the much more important conditional
-probability for our purposes, which is the conditionaly probability that the sex-$s$ parent of
+probability for our purposes, which is the conditional probability that the sex-$s$ parent of
 $A$ was from cohort $c_A$, and the sex-$s$ parent of $B$ was from cohort $c_B$ given
-that $A$ ane $B$ do not share a sex-$s$ parent.  This is actually the probability that
+that $A$ and $B$ do _not_ share a sex-$s$ parent.  This is actually the probability that
 we need for weighting ancestral cohorts when we  continue extending the lineages back into past 
-generations, so it is pretty important.  We can write this as:
+generations, so it is pretty important.  We write this as:
 $$
 P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B \mid I(A^1_s) \neq I(B^1_s)\bigr) =
 \frac{P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B,~I(A^1_s) \neq  I(B^1_s)\bigr)}
 {1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)}
 $$
-(Note that $P\bigl( I(A^1_s) \neq  I(B^1_s)\bigr)) = 1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)$, so
+(Note that $P\bigl( I(A^1_s) \neq  I(B^1_s)\bigr) = 1 - P\bigl( I(A^1_s) =  I(B^1_s)\bigr)$, so
 we write it that way in the denominator.  Also, note that if $c_A\neq c_B$ then
 $I(A^1_s) \neq I(B^1_s)$ with probability 1.  So we have that this is essentially
 $$
@@ -231,22 +235,114 @@ $$
 The $P\bigl(C(A^1_s) = c_A,~C(B^1_s) = c_B\bigr)$ term is just the product of
 the ERROs for those cohorts of parents.  So, we know how to get those.  When
 $c_A = c_B = c$ and the identities of the parents are not the same, that can occur
-because either because the parent of the first born did not survive (so we would have
-a $1 - \prod \lambda$ term in there, OR because it did survive, but was not the
-parent of the second born, in which case it has a $\prod \lambda$ multiplied by
-a $\frac{N-1}{N}$ term.  We can verify these to make sure that unnormalized conditional
+because either the parent of the first born did not survive (so we would have
+a $1 - \prod \lambda$ term in there), OR because it did survive, but was not the
+parent of the second born (in which case it has a $\prod \lambda$ multiplied by
+a $\frac{N-1}{N}$ term).  We can verify these to make sure that the unnormalized conditional
 probabilities (i.e., the joint probabilities) sum to 1 over all $c_A$ and $c_B$ and
 over $I(A^1_s) = I(B^1_s)$ and $I(A^1_s) \neq I(B^1_s)$
 
 
 I like this notation and where it is going.  But sometime around now is when we
-need to start asserting that only a sinble lineage will coalesce at any particular
-generational level (unless it is an F-type relationship).  We can start with
-male and female HSPs and see how the probabilities work out.  I think that this is
-going to be a crucial assumption/assertion to avoid combinatorially blowing up
-when we get lots of overlapping lineages.  It is also a reasonable one.  
+need to start considering our first "large population approximation" by which
+we assert that only a single lineage will coalesce at any particular
+generational level (unless it is an F-type relationship, and we have a different
+way of dealing with that (only in same cohorts!)). I think that this is
+going to be a crucial assumption/assertion to avoid combinatorically blowing up
+when we get lots of overlapping lineages.  It is also a reasonable one, and one
+that is analagous to the common assumption in CKMR that we end up only with pairs.
+One of the first places we can apply this assumption is when we are considering the
+lineages coming up through both the male and the female parents.  As we have seen
+above, it is straightforward to calculate both
+$$
+P\bigl(C(A^1_\m) = c,~C(B^1_\m) = c \mid I(A^1_\m) =  I(B^1_\m)\bigr)
+$$
+and 
+$$
+P\bigl(C(A^1_\f) = c,~C(B^1_\f) = c \mid I(A^1_\f) =  I(B^1_\f)\bigr).
+$$
+Those are both marginal probabilities for the male and female parents; however, if
+we want to entertain the idea of tracing lineages further back in time given that
+neither the male nor the female parent was shared between $A$ and $B$, then we
+will need to calculate the conditional probability of the cohorts of the parents of
+$A$ and $B$ given that none of the parents were shared.  This will look something
+like:
+\begin{equation}
+\frac{P\bigl(C(A^1_\m) = c^\m_A,~C(B^1_\m) = c^\m_B,~
+       C(A^1_\f) = c^\f_A,~C(B^1_\f) = c^\f_B,~ 
+       I(A^1_\m) \neq  I(B^1_\m),~I(A^1_\f) \neq  I(B^1_\f)
+       \bigr)
+}{
+P\bigl( 
+       I(A^1_\m) \neq  I(B^1_\m),~I(A^1_\f) \neq  I(B^1_\f)
+       \bigr)
+}
+\end{equation}
+Let's say we assume that mating is totally at random so that mothers and fathers
+are independent.  In that case, the numerator is no problem: it factorizes into
+\[
+P\bigl(C(A^1_\m) = c^\m_A,~C(B^1_\m) = c^\m_B \mid
+       I(A^1_\m) \neq  I(B^1_\m)
+       \bigr) \times
+P\bigl( C(A^1_\f) = c^\f_A,~C(B^1_\f) = c^\f_B \mid I(A^1_\f) \neq  I(B^1_\f) \bigr).
+\]
+The harder nut to crack is the denominator because of inclusion/exclusion.  We note that
+\[
+\begin{aligned}
+P\bigl( 
+       I(A^1_\m) \neq  I(B^1_\m),~I(A^1_\f) \neq  I(B^1_\f)
+       \bigr) &= 1 - 
+P\bigl( 
+       I(A^1_\m) =  I(B^1_\m) \bigr)  \\
+&- P\bigl( 
+       I(A^1_\f) =  I(B^1_\f) \bigr) \\
+&+ P\bigl( 
+       I(A^1_\m) =  I(B^1_\m),~I(A^1_\f) =  I(B^1_\f)
+       \bigr),
+\end{aligned}
+\]
+and remind ourselves that $P\bigl(I(A^1_\m) =  I(B^1_\m) \bigr)$ and
+$P\bigl(I(A^1_\f) =  I(B^1_\f) \bigr)$ are easy to compute by summing
+over the possible shared cohorts.  The term
+$P\bigl(I(A^1_\m) =  I(B^1_\m),~I(A^1_\f) =  I(B^1_\f)\bigr)$, however, might
+be a little more involved to compute.  Or is it?  If the shared nature of the
+male and female parents are independent, then this should just be equal to the
+product $P\bigl(I(A^1_\m) =  I(B^1_\m) \bigr)P\bigl(I(A^1_\f) =  I(B^1_\f) \bigr)$
+which should be easy to compute.
+
+Hmmm...so, I had been thinking that it might be expedient to just go ahead and assume
+that the probability of more than one lineage being shared at any particular time
+depth in the pedigree was zero, because then those multiple sharing terms drop
+away.  But, in fact, it looks like we might be able to make the less stringent
+assumption that lineage sharing is independent between portions of the pedigree that
+are not connected along the arrow paths: if we think of the pedigree as a dag with
+arrows going down, then sharing between individuals that have to go "against an arrow"
+in order to draw a line from one to the other would be considered independent.  Basically
+that condition is that if you are already sharing one pair of ancestors, then the sharing of
+another pair, neither of which are ancestors (or descendants) of the original pair,
+would be considered independent.  All right.  Let's work with that.  
 
 
+OK.  Let's restrict the problem a little bit to make it simpler to think about, and
+then we can expand it later.  First, assume that the only relationships we will find
+are of the $\HH{a}{b}$ variety, and _only with_ $a=b$.  So, we are not going to worry
+about avunculars and things for the moment.  And assume that mating is totally at
+random, so full sibs are independently obtained double half-sibs.  In this case, we
+would trace upward from $A$ and $B$ accumulating probabilities. If we ever got to
+a shared ancestor we would stop tracing up above that, because we know that the
+ancestors above the shared one would always be the same.  So, if we are comparing
+an ancestor in a later generation between $A$ and $B$, we are effectively saying
+that the descendants of those ancestors were not shared at all between $A$ and $B$,
+and that is the way it should be, because we are trying to compute the probability
+of the first-hit ancestors.  But, the upshot of this rambling of mine is that any
+time we are, say, looking at possible cohorts of the parents and asking if the
+fathers of $A$ and $B$ or the mothers of $A$ and $B$ might be half-siblings (i.e.,
+asking if they are shared grandparents of $A$ and $B$) we are going to be doing that
+conditional on both $A$ and $B$ not having shared either the mother or the father.  
+
+
+We can start with
+male and female HSPs and see how the probabilities work out. 
 
 Below is a figure that shows a sampling arrow in the diagram.
 ```{r}
