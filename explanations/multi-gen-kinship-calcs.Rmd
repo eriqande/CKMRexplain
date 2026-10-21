@@ -1,6 +1,6 @@
 ---
 title: "Calculating Multigenerational Kinship Probabilities in Age Structured Models"
-output: pdf_document
+output: bookdown::pdf_document2
 date: "2026-10-17"
 header-includes:
   - \usepackage{wasysym}
@@ -184,17 +184,33 @@ $s_1$.  So, for example, we could write $I(A^2_{\m\f})$ for A's maternal grandfa
 Also, let $C(A^1_s)$ be the cohort of the sex-$s$ ancestor one generation back from $A$.
 So, we can express the half-sib probability with shared parent of sex $s$ as:
 $$
-P\bigl( I(A^1_s) =  I(B^1_s)\bigr)
+P\biggl( I(A^1_s) =  I(B^1_s)\biggr)
 $$
 which can be written as a sum over the joint probability of the cohorts and shared identities
 of the parents of $A$ and $B$:
 $$
-P\bigl( I(A^1_s) =  I(B^1_s)\bigr) = \sum_{c \in \{C(A^1_s)\} \cap \{C(B^1_s)\}} P\bigl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\bigr)
+P\biggl( I(A^1_s) =  I(B^1_s)\biggr) = \sum_{c \in \{C(A^1_s)\} \cap \{C(B^1_s)\}} P\biggl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\biggr)
 $$
 where the sum in $c$ is over the intersection of feasible cohorts for the the sex-$s$
-parents of $A$ and $B$.
-
-That is typically as far as it goes---you just calculate the HSP prob and you are done.
+parents of $A$ and $B$.  It is worth pointing out here that the joint probability
+can be written as the probability that the two sex-$s$ parents are from the same
+cohort times the probability that they are the same individual given they are from the
+same cohort:
+$$
+\begin{aligned}
+P\biggl(C(A^1_s) = c,~C(B^1_s) = c,~I(A^1_s) =  I(B^1_s)\biggr) &= 
+     P\biggl(C(A^1_s) = c\biggr) 
+     P\biggl(C(B^1_s) = c\biggr) \\
+& \times P\biggl(I(A^1_s) =  I(B^1_s)~\biggl|~ C(A^1_s) = c,~C(B^1_s) = c \biggr).
+\end{aligned}
+$$
+And that is simply lovely because we already know that $P\bigl(C(A^1_s) = c\bigr)$ and
+$P\biggl(C(B^1_s) = c\biggr)$ are simply the expected relative reproductive output of 
+sex-$s$ individuals from cohort $c$ at the time of $A$ or $B$'s birth respectively.
+And $P\bigl(I(A^1_s) =  I(B^1_s)~\bigl|~ C(A^1_s) = c,~C(B^1_s) = c \bigr)$ is just
+where we have 1 over the number of cohort-c individuals of sex $s$ at the time of
+the second-born's birth, and the survival term in there.  So that is all very familiar.
+But that is typically as far as it goes---you just calculate the HSP prob and you are done.
 But, when we are trying to think through a general calculation for multigenerational
 kinship probabilities, there are a few more terms that will be very important.
 
@@ -268,6 +284,7 @@ will need to calculate the conditional probability of the cohorts of the parents
 $A$ and $B$ given that none of the parents were shared.  This will look something
 like:
 \begin{equation}
+  (\#eq:parent-cohorts-unshared)
 \frac{P\bigl(C(A^1_\m) = c^\m_A,~C(B^1_\m) = c^\m_B,~
        C(A^1_\f) = c^\f_A,~C(B^1_\f) = c^\f_B,~ 
        I(A^1_\m) \neq  I(B^1_\m),~I(A^1_\f) \neq  I(B^1_\f)
@@ -280,14 +297,16 @@ P\bigl(
 \end{equation}
 Let's say we assume that mating is totally at random so that mothers and fathers
 are independent.  In that case, the numerator is no problem: it factorizes into
-\[
+\begin{equation}
+(\#eq:pcu-numer)
 P\bigl(C(A^1_\m) = c^\m_A,~C(B^1_\m) = c^\m_B \mid
        I(A^1_\m) \neq  I(B^1_\m)
        \bigr) \times
 P\bigl( C(A^1_\f) = c^\f_A,~C(B^1_\f) = c^\f_B \mid I(A^1_\f) \neq  I(B^1_\f) \bigr).
-\]
+\end{equation}
 The harder nut to crack is the denominator because of inclusion/exclusion.  We note that
-\[
+\begin{equation}
+(\#eq:pcu-denom)
 \begin{aligned}
 P\bigl( 
        I(A^1_\m) \neq  I(B^1_\m),~I(A^1_\f) \neq  I(B^1_\f)
@@ -300,14 +319,18 @@ P\bigl(
        I(A^1_\m) =  I(B^1_\m),~I(A^1_\f) =  I(B^1_\f)
        \bigr),
 \end{aligned}
-\]
+\end{equation}
 and remind ourselves that $P\bigl(I(A^1_\m) =  I(B^1_\m) \bigr)$ and
 $P\bigl(I(A^1_\f) =  I(B^1_\f) \bigr)$ are easy to compute by summing
 over the possible shared cohorts.  The term
 $P\bigl(I(A^1_\m) =  I(B^1_\m),~I(A^1_\f) =  I(B^1_\f)\bigr)$, however, might
 be a little more involved to compute.  Or is it?  If the shared nature of the
 male and female parents are independent, then this should just be equal to the
-product $P\bigl(I(A^1_\m) =  I(B^1_\m) \bigr)P\bigl(I(A^1_\f) =  I(B^1_\f) \bigr)$
+product:
+\begin{equation}
+(\#eq:denom-product)
+P\bigl(I(A^1_\m) =  I(B^1_\m),~I(A^1_\f) =  I(B^1_\f)\bigr) = P\bigl(I(A^1_\m) =  I(B^1_\m) \bigr)P\bigl(I(A^1_\f) =  I(B^1_\f) \bigr)
+\end{equation}
 which should be easy to compute.
 
 Hmmm...so, I had been thinking that it might be expedient to just go ahead and assume
@@ -338,13 +361,52 @@ of the first-hit ancestors.  But, the upshot of this rambling of mine is that an
 time we are, say, looking at possible cohorts of the parents and asking if the
 fathers of $A$ and $B$ or the mothers of $A$ and $B$ might be half-siblings (i.e.,
 asking if they are shared grandparents of $A$ and $B$) we are going to be doing that
-conditional on both $A$ and $B$ not having shared either the mother or the father.  
+conditional on both $A$ and $B$ not having shared either the mother or the father.
+So, the relevant conditional probability on the cohorts of the mother and father
+will be that given in \@ref(eq:parent-cohorts-unshared), which can be calculated
+quickly and easily from already computed quantities via the numerator, as given
+in \@ref(eq:pcu-numer), and the denominator as given in \@ref(eq:pcu-denom) with the
+joint probability term computed as in \@ref(eq:denom-product).
+
+It is also interesting to note that if we are simply assuming that shared ancestors
+in "non-vertical" parts of the pedigree are independent, then we can calculate the
+probability of joint first-hit relationships in all the different pedigree subtrees.
+This can be seen pretty easily by looking at the first pedigree figure.  If $A$ and
+$B$ share an ancestor, then you can just ignore everything above each of those shared
+first-hit ancestors, but then you have all the other non-ingored ancestors as possible
+matches, too.  The denominator in the cohort probabilities is different, but
+should be computable from cached quantities.   I feel like I have a pretty good
+sense of how this would proceed in this restricted space where $a=b$.  (I haven't
+written it out yet, but I will wait on that until we don't have that restriction).
+In order to relieve ourselves of that restriction, I think it will be helpful to
+talk about the probabilities of direct-descent relationships.  
+
+Our notation extends nicely to this case.  We will use $I(A^0) = I(B^1_s)$ to denote
+the situation in which $A$ is a sex-$s$ parent of $B$, and since these relationships
+are not symmetrical we note that in the other direction it would be written as
+$I(B^0) = I(A^1_s)$.  One defining feature of these sorts of direct relationships
+is that both members of the pair have been directly sampled, and that figures into
+the probability.  We will denote the sampling times as $S(A)$ and $S(B)$ respectively.
+We write the probabilities down as:
+$$
+P\biggl(C(B^1_s),~I(A^0) = I(B^1_s)~\biggr|~ C(A^0), S(A),   \biggr)
+$$
+I don't want to write it all the way out at the moment, but basically the probability
+that A is the sex-$s$ parent of $B$ boils down to the probability that $C(B^1_s)$ is equal
+to the cohort of $A$ (that's an ERRO calculation) times the probability that $A$ is the
+parent of $B$ from that cohort (that is a $1/N$ calculation) times the probability
+that $A$ survived to the time of $B$'s birth, if $A$ was sampled before $B$'s birth.
+That survival term is 1 if $A$ was sampled after $B$'s birth and 0 if $A$ was lethally
+sampled before $B$'s birth, and can account for additional sampling mortality if
+$A$ was sampled before $B$'s birth.  And, of course, if we have any covariates that
+could affect the ERRO calculation (like length) we should use that.  That's a bit of a
+hassle, but can be dealt with.
 
 
-We can start with
-male and female HSPs and see how the probabilities work out. 
+ 
 
-Below is a figure that shows a sampling arrow in the diagram.
+Now we are in a place to start walking through what the recursive algorithm
+will be to compute these probabilities up the pedigree.
 ```{r}
 sample_times <- tibble::tibble(
   indiv = c("A", "B-4"),
@@ -354,11 +416,34 @@ sample_times <- tibble::tibble(
 
 draw_pedigree_and_cohorts(
   sample_times = sample_times,
-  cohortBarBlackText = TRUE
+  cohortBarBlackText = TRUE,
+  sexA = "M"
 )
 ```
 
+First, we have an initialization in which we calculate:
+$$
+P\biggl(I(A^1_s) = I(B^1_s)~\biggl|~ C(A) = c_A,~C(B)=c_B  \biggr)
+$$
+for $s\in\{\m,\f\}$ and for all $c_A$ and $c_B$ which are possible cohort pairs
+for half-siblings going back $n-1$ generations.  In the process, we will, or course,
+compute
+$$
+P\bigl(C(A^1_s) = c^s_A,~C(B^1_s) = c^s_B \mid
+       I(A^1_s) \neq  I(B^1_s),~C(A) = c_A,~C(B) = c_B\bigl)
+$$
+for all $c_A$ and $c_B$ and both sexes $s$, and then also for the
+$c^2_A$ and $c^2_B$ cohorts of the parents.  Once we have pre-computed those we
+should be in a good position to quickly go back by one generation.  
 
+
+We also need to compute similar quantities for going back one generation,
+but only on either the $A$ or the $B$ side.  This is what the 
+
+
+
+see which of $A$ or $B$ is older.  In the figure, $A$ is older so we evaluate
+the probability that $A$ is the father of $B$.  
 
 
 
