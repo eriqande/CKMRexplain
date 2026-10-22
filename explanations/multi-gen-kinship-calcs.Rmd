@@ -4,6 +4,8 @@ output: bookdown::pdf_document2
 date: "2026-10-17"
 header-includes:
   - \usepackage{wasysym}
+  - \usepackage{accents}
+bibliography: /Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/citations.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -13,6 +15,7 @@ knitr::opts_chunk$set(cache = TRUE)
 
 \input{/Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/notation.tex}
 
+# Introduction
 
 My initial foray into the realm of calculating multignerational kinship probabilities
 ended with some nice recurrence relations for calculating sums of probabilities along
@@ -36,7 +39,7 @@ are implemented in my package `CKMRexplain' for the moment. Let's begin:
 library(CKMRexplain)
 ```
 
-## A Handy Visual Representation
+# A Handy Visual Representation
 
 Any time we are tracing lineages back through a pedigree, we have a pedigree.  In
 fact, for CKMR and calculating pairwise kinship probabilities, we always have
@@ -446,5 +449,124 @@ see which of $A$ or $B$ is older.  In the figure, $A$ is older so we evaluate
 the probability that $A$ is the father of $B$.  
 
 
+# Starting Over from Scratch
 
+I spent a lot of time obsessing over this in the last few days, and doing some pencil
+and paper work, and I think it is time to build this all up from the ground again
+with different notation and a newfound perspective.  I am hoping that I can work
+this out correctly this time.  In order to capture all the possibilities a little
+bit better, visually---especially the chance for great-grandparent-great-grandchild
+relationships---I will make a new figure that has early maturation times (1 year for
+males and 2 for females):
+```{r}
+draw_pedigree_and_cohorts(
+  cohortBarBlackText = TRUE,
+  showCohorts = TRUE,
+  sexA = "M", 
+  Mf = 2,
+  Mm = 1
+)
+```
+The above shows a pedigree-cohort diagram extending back in time for $n=3$ generations
+from sample $A$ and sample $B$ in a
+population in which males mature at $M_\m=1$ and have a maximum reproductive age
+of $A^\m_\mmax = 10$, while, for females, the corresponding values are
+$M_\f=2$ and $A^\f_\mmax = 12$.
+
+Each individual in the pedigree is referred to by a number from 1 to $2^{n+1}-1$, where
+$n$ is the number of generations back from the samples the pedigrees extend. And,
+more generally, the indexes of ancestors at depth $g>0$ generations before the sample run
+from $2^g$ to $2^{g+1}-1$.
+We note that the samples themselves may  be referred to by their index/number in the pedigree,
+which is 1. So, individual 1 in $A$'s pedigree is sample $A$ itself.  We may refer to specific
+individuals as, for example $Ax$ or $Bx$, where $x$ is the index of the individual in the
+pedigree.  Hence, $A5$ would be the paternal grandmother of $A$, and $B1$ would be $B$
+itself.  For $x>1$, even numbers are males and
+odd numbers are females. Individual $x$ appears
+$\modd{\log_2x}$ generations before the sample. Furthermore, $x$'s father has index
+$2x$ and $x$'s mother has index $2x+1$, and thus, for $x>0$ the child of a male or
+female $x$ has index $\modd{x/2}$.
+
+We let the minimum and maximum feasible cohorts for an individual with index $x$ be denoted
+$\cmin{x}$ and $\cmax{x}$, respectively, and we represent all the feasible cohorts for
+$x$ as $[\cmin{x},\cmax{x}]$, the ordered set of integers from $\cmin{x}$ to $\cmax{x}$, inclusive.
+We take the cohorts of the samples themselves
+to be known with certainty (age uncertainty is added after the multigenerational kinship
+calculation), such that, for $A1$ we have $\cmin{1}=\cmax{1}=c_A$ and for $B1$,
+$\cmin{1}=\cmax{1}=c_B$. When we wish to refer to a range of feasible cohorts for
+individual $x$ within a specific pedigree, like $A$'s, we will use the $Ax$ notation,
+for example, $[\cmin{Ax},\cmax{Ax}]$. The feasible cohorts for an individual with $x>1$ can 
+be obtained from the feasible cohorts of their child with index $k=\modd{x/2}$ by:
+\begin{equation}
+(\#eq:cminmax)
+[\cmin{x},\cmax{x}] =
+\begin{cases}
+[\cmin{k}-M_\m,\cmax{k}-A^\m_\mmax]~,~~~\mbox{if}~x~\mbox{is even} \\
+[\cmin{k}-M_\f,\cmax{k}-A^\f_\mmax]~,~~~\mbox{if}~x~\mbox{is odd}.
+\end{cases}
+\end{equation}
+The above gives the feasible cohorts to which an ancestor may belong.  We also
+want to speak of the probability that an individual is in a certain cohort.  We
+define this as a conditional probability that $x$ is of cohort $c$ given that
+its child $k$ was born in cohort $c^*$.  For $x>1$ these probabilities are
+proportional to the expected relative reproductive output (ERRO) of the individuals of cohort
+$c$ in the year $c^*$.
+\begin{equation}
+(\#eq:pxk)
+p^x_k(c,c^*) \propto
+\begin{cases}
+E_{\m,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is even and~} c^*-A^\m_\mmax < c < c^*-M_\m \\
+E_{\f,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is odd and~} c^*-A^\f_\mmax < c < c^*-M_\f \\
+0~,~~~\mbox{otherwise},
+\end{cases}
+\end{equation}
+with equality obtained by normalizing so that $p^x_k(c,c^*)$ sums to 1 over $c$. 
+$E_{s,t,a}$ is the ERRO of all the sex-$s$ and age-$a$ individuals
+alive at time $t$, a familiar term in CKMR.
+
+Samples $A$ and $B$ are related to one another if there exist an individual with
+index $x$ in $A$'s pedigree that is the same individual as an individual with
+index $y$ in $B$'s pedigree. In order for $x$ and $y$ to be same individual, it
+must be the case that $x$ and $y$ are from the same cohort and that $x$ and $y$ are
+the same sex (species that do not change sex).  We denote by $S^x_y(c)$ the event that $x$ in
+$A$'s pedigree and $y$ in $B$'s are the same individual born in cohort $c$. The figure
+above is instructive because it shows visually the individuals in $A$'s pedigree
+that could come from the same cohort and be of the same sex as individuals in $B$'s
+pedigree.  For example, $A1$, born in 56 could be any one of the male's in $B$'s
+pedigree whose range of feasible cohorts includes 56; in order from left to write
+those are 8, 4, 2, 10, 12 and 6.  
+
+In order to maintain simplicity and computational efficiency, we will assume that
+$A$ and $B$ share either a single most recent ancestor or two most recent ancestors
+that occur in no more than a single mating. We have
+to say "most recent" here, because the ancestors of any shared ancestor will also
+be shared.  Thus, loosely following the 
+notation of @skare2009identification, $A$ and $B$ can
+share a single relationship characterized either as $\HH{a}{b}$, where $A$ and
+$B$ share a single most-recent ancestor that is $a$ generations from $A$ and $b$ generations
+from $B$; or characterized as $\FF{a}{b}$, where $A$ and $B$ share two most-recent ancestors
+at a depth of $a$ and $b$ generations from $A$ and $B$, and those two ancestors
+mated to produce $A$ and $B$ or individuals that are ancestors to $A$ and $B$.
+For example, $\HH{1}{1}$ is a half-sibling relationship, $\FF{1}{1}$ is a full-sibling
+relationship, $\HH{1}{2}$ is a half avuncular relationship, $\FF{3}{3}$ is a full
+second cousin relationship, and so on.  For the
+$H$-type relationships, we allow either or both of $a$ and $b$ to be zero.  Hence,
+$\HH{0}{0}$ indicates that $A$ and $B$ are the same individual (or are clones),
+$\HH{0}{b}$ means that $A$ is a direct ancestor, $b$ generations ago, of $B$, and
+$\HH{a}{0}$ means that $B$ is a direct ancestor of $A$, $a$ generations back from $A$.
+Another way of stating this is that
+the relationships we allow between $A$ and $B$ are characterized by only a single
+one of the four possible mutually exclusive cases:
+
+* $A$ and $B$ are from the same cohort and are the same individual.
+* The younger of $A$ or $B$ is a direct descendant of the older of $A$ or $B$.
+* A single ancestor of $A$ and a single ancestor of $B$ are half-siblings.
+* A single ancestor of $A$ and a single ancestor of $B$ are full-siblings.
+
+Because the occurrence of any shared ancestor occurs with probability of
+order $O(1/N)$, this assumption is equivalent to ignoring events with probability
+on the order of $O(1/N^2)$, which is already common in CKMR studies of
+large marine populations.  
+
+# References {-}
 
