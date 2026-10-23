@@ -501,8 +501,8 @@ be obtained from the feasible cohorts of their child with index $k=\modd{x/2}$ b
 (\#eq:cminmax)
 [\cmin{x},\cmax{x}] =
 \begin{cases}
-[\cmin{k}-M_\m,\cmax{k}-A^\m_\mmax]~,~~~\mbox{if}~x~\mbox{is even} \\
-[\cmin{k}-M_\f,\cmax{k}-A^\f_\mmax]~,~~~\mbox{if}~x~\mbox{is odd}.
+[\cmin{k}-A^\m_\mmax,\cmax{k}-M_\m]~,~~~\mbox{if}~x~\mbox{is even} \\
+[\cmin{k}-A^\f_\mmax,\cmax{k}-M_\f]~,~~~\mbox{if}~x~\mbox{is odd}.
 \end{cases}
 \end{equation}
 The above gives the feasible cohorts to which an ancestor may belong.  We also
@@ -532,7 +532,7 @@ the same sex (species that do not change sex).  We denote by $S^x_y(c)$ the even
 $A$'s pedigree and $y$ in $B$'s are the same individual born in cohort $c$. The figure
 above is instructive because it shows visually the individuals in $A$'s pedigree
 that could come from the same cohort and be of the same sex as individuals in $B$'s
-pedigree.  For example, $A1$, born in 56 could be any one of the male's in $B$'s
+pedigree.  For example, $A1$, born in 56 could be any one of the males in $B$'s
 pedigree whose range of feasible cohorts includes 56; in order from left to write
 those are 8, 4, 2, 10, 12 and 6.  
 
@@ -566,7 +566,86 @@ one of the four possible mutually exclusive cases:
 Because the occurrence of any shared ancestor occurs with probability of
 order $O(1/N)$, this assumption is equivalent to ignoring events with probability
 on the order of $O(1/N^2)$, which is already common in CKMR studies of
-large marine populations.  
+large marine populations.  For an example of what this means, consider a CKMR
+study in a population of size of constant size $N$ in which 100 half-siblings
+are found. To first approximation, the number of pairwise comparisons made is
+on the order of 100$N$, so the total expected number of $O(1/N^2)$ events observed
+is of the order $100/N$.  Thus, if $N = 10^5$, you expect to see an $O(1/N^2)$ event
+on the order of only once every 1000 times you run the study.  Ignoring $O(1/N^2)$
+terms thus appears to be a reasonable choice.  
+
+Ultimately, the probabilities of those relationship categories, $P(\HH{a}{b} \mid \cdots)$
+and $P(\FF{a}{b}\mid \cdots)$, are precisely the probabilities required for multigenerational
+CKMR, and they must be derived conditional on 1) the age structure
+and abundance of the population, 2) the maturity, fecundity, survival and mating
+patterns of its members, and 3) the birth cohorts and any other covariates of the
+samples.  However, in order to calculate those probabilities
+in an age-structured population, we have to sum over the different ways those
+relationships can occur: there may be many different ancestors that can be shared
+to create an $\HH{a}{b}$ or $\FF{a}{b}$ relationship, and those ancestors, and
+any intervening ones can belong to different cohorts. On top of that, we have to
+ensure that the shared ancestors are strictly the most recent shared ancestors: 
+in order to have an $\HH{2}{2}$
+relationship, the pair must share a grandparent; however, they cannot also
+share a parent.  Said another way: in order to have an $\HH{a}{b}$ relationship,
+a pair cannot have any other $\HH{a^*}{b^*}$ or $\FF{a^*}{b^*}$ relationship
+where $a^*\leq a$, $b^*\leq b$, and at least one of $a^*<a$ or $b^*<b$ holds. To
+formalize this idea, we introduce another notation $\NN{a}{b}$ which means that
+$A$ and $B$ do not share any ancestors at any generation levels $a^* \leq a$ before
+$A$ and $b^* \leq b$ generations before $B$.
+
+Operationally, the probabilities are calculated by working backward from the
+samples up through successive generation levels.  So for the case as illustrated
+above, with $c_A<c_B$, we first note that $c_A \neq c_B$ so that $P(\HH{0}{0}) = 0$.
+At this point, we record $P\NN{0}{0}) = 1 - P(\HH{0}{0}) = 1$ and move on to the
+next possible generation level.  Because $B$ is from a later cohort than $A$, that next level
+is the one in which we increment the $b$ counter in $\HH{0}{0}$ by 1, landing us at
+$\HH{0}{1}$.  We then calculate $P(\HH{0}{1}) which is the probability of
+being a parent-offspring pair, which is a standard CKMR calculation, and we
+record...
+
+
+Sigh...This is pretty complex.  Let's say the order of comparisons go as follows:
+
+* Self:  1:1  (that is A1:B1)
+* Direct, depending on sex and cohort.  There are four possible routes to go.  In
+  our figure we have
+    - A to fathers, g-fathers, and gg-fathers 1:2, 1:4,6,  1:8,10,12,14, but notice
+      that 4 is possible only if 1:2 isn't a relationship. And 1:8 is possible only
+      if 1:2 and 1:4 are not it.  10 is possible only if 1:4 is not a relationship.
+      
+So, start looking at 1:2,  If not that, then you get to do 1:4,6.  If none of those
+you get to look at 1:8,10,12,14.  This is relatively simple because we are assuming
+we know that sex of $A$ is male.  But if $A$ were a female, the pairs we would test
+would be:  1:3,  if not that, then we'd test 1:5,7, and if none of those, we would
+test 1:9,11,13,15.  So, in fact, going on to each step involves have no one being
+related at any steps before that, so we don't actually worry just about the subtree
+below someone (for example for 8 we don't just account for the probability that 4 is
+not related to 1, but we also take account of the fact that 6 is not related to 1. This
+is because we are asserting that there is only 1 related ancestor (or 2 in an F type
+relationship) and hence we won't follow up with the later generation if there is a
+hit in an earlier one.)
+
+So, maybe we can look at a sort of "call-tree" that would happen.  
+
+With pairs listed as A:B always below, for A1 as a male we have
+
+* 1:1  (prob=0)   (The first symmetrical one)
+* 1:2
+* 1:4,6
+* 1:8,10,12,14
+* 1:3, 1:5,7, 1:9,11,13,15  all (prob = 0 cuz wrong sex)
+
+Note that all the direct relationships with $A$ as the older one are constrained
+by the sex of A.  Then we move up to the next symmetrical level.
+
+* 2:2 and 3:3   (the half-sibling relationships---the 2nd symmetrical one)
+* 2:4, 3:5
+* 4:2, 5:3
+* 2:6, 6:2
+
+        
+
 
 # References {-}
 
