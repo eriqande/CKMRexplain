@@ -851,7 +851,9 @@ we want the probability conditional on no shareing.
 Yikes! It is complex, but it seems that working backward over time like this
 is the way to go.  
 
-
+Oof. It is way more complex than this.  The cohort process follows a dag that is the
+pedigree in reverse, so it has a joint probability.  But it get to be completely
+gruesome as we entertain sharing between the pedigrees.  
 
 # Boneyard
 
