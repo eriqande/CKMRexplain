@@ -10,7 +10,7 @@ bibliography: /Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/citations
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(cache = FALSE)
 ```
 
 \input{/Users/eriq/Documents/Post-NOAA/git-repos/chunkyG-papers/notation.tex}
@@ -37,6 +37,7 @@ age of 10, while females mature at 6 and have a max age of 12.  The plotting fun
 are implemented in my package `CKMRexplain' for the moment. Let's begin:
 ```{r}
 library(CKMRexplain)
+library(tidyverse)
 ```
 
 # A Handy Visual Representation
@@ -515,14 +516,187 @@ $c$ in the year $c^*$.
 (\#eq:pxk)
 p^x_k(c,c^*) \propto
 \begin{cases}
-E_{\m,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is even and~} c^*-A^\m_\mmax < c < c^*-M_\m \\
-E_{\f,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is odd and~} c^*-A^\f_\mmax < c < c^*-M_\f \\
+E_{\m,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is even and~} c^*-A^\m_\mmax \leq c \leq c^*-M_\m \\
+E_{\f,c^*,c^*-c}~,~~~\mbox{if}~x~\mbox{is odd and~} c^*-A^\f_\mmax \leq c \leq c^*-M_\f \\
 0~,~~~\mbox{otherwise},
 \end{cases}
 \end{equation}
 with equality obtained by normalizing so that $p^x_k(c,c^*)$ sums to 1 over $c$. 
-$E_{s,t,a}$ is the ERRO of all the sex-$s$ and age-$a$ individuals
-alive at time $t$, a familiar term in CKMR.
+$E_{s,t,i}$ is the ERRO of all the sex-$s$ and age-$i$ individuals
+alive at time $t$.  This is a term that appears frequently in CKMR models and is typically
+calculated as the expected relative reproductive output
+[@bravington2016close;@waples2022close] of the sex-$s$ individuals of a given age $i$ at a given time, $t$,
+and can be formulated in terms of the numbers of individuals of sex $s$ and age $i$ at time $t$ ($N_{s,t,i}$), the fraction of those that are mature ($P^\mathrm{mat}_{s,i}$), and the expected reproductive output ($R_{s,i}$) of 
+sex-$s$, age-$i$ individuals in the population:
+\begin{equation}
+E_{s,t,i} = \frac{N_{s,t,i}P^\mathrm{mat}_{s,i}R_{s,i}}
+{\sum_a N_{s,t,a}P^\mathrm{mat}_{s,a}R_{s,a}}.
+\end{equation}
+The absolute abundance $N_{s,t,i}$ will typically not be known, but some
+estimate of the age composition might be available, in which case $E_{s,t,i}$
+can be expressed in terms of the age composition of the population.  Thus, letting
+$C$ denote the age composition, we have:
+$$
+C_{s,t,i} = \frac{N_{s,t,i}}{\sum_{i}N_{s,t,i}},
+$$
+and it follows that
+$$
+E_{s,t,i} = \frac{C_{s,t,i}P^\mathrm{mat}_{s,i}R_{s,i}}
+{\sum_a C_{s,t,a}P^\mathrm{mat}_{s,a}R_{s,a}}.
+$$
+
+Given this setup, we can calculate a birth-cohort distribution for each numbered
+position in each pedigree, starting at the samples and proceeding backward. Let
+$q_{Ax}(c)$ denote the probability that individual $Ax$ was born in cohort $c$,
+conditional only on the known birth cohort of sample $A$. At the sample itself,
+\begin{equation}
+(\#eq:cohort-root)
+q_{A1}(c) = \mathbf{1}\{c=c_A\}.
+\end{equation}
+For $x>1$, write $k=\lfloor x/2\rfloor$ for its child. Averaging over the
+possible birth cohorts of that child gives the recursion
+\begin{equation}
+(\#eq:cohort-recursion)
+q_{Ax}(c) = \sum_{c^*} q_{Ak}(c^*)\,p^x_k(c,c^*).
+\end{equation}
+The corresponding equations for $B$ replace $A$ with $B$ and initialize at $c_B$.
+Because $E$ is already normalized over parental ages, $p^x_k(c,c^*)$ equals the
+appropriate sex-specific $E_{s,c^*,c^*-c}$ without further normalization, provided
+we retain the complete reproductive-age support. Every numbered individual's
+distribution sums to one; we do not sum over the different pedigree branches
+when normalizing it. These are unconditional distributions with respect to
+sharing and non-sharing between the pedigrees. They do not yet account for
+whether any ancestral individuals are the same.
+
+Survival does not enter this recursion as a separate multiplier when the age
+composition comes from a census after mortality and before reproduction. The
+surviving potential parents are already counted in $N$. Survival between two
+reproductive events will enter later, when considering shared ancestral identities.
+
+## A simulated population for checking cohort distributions
+
+We construct a population with maximum age 12 for both sexes. Males reproduce
+at ages 3--10, and females at ages 6--12, with reproductive output proportional
+to age squared within those ranges. Survival into maturity is one; subsequent
+annual survival is 0.85. In SPIP, survival entry $a$ describes the transition
+from age $a-1$ to age $a$, so the first reduced-survival entry is the one
+immediately after maturity. Annual cohort size is 1,000, and the simulation
+runs for 70 years. We explicitly set mate fidelity to -1 (random mate choice).
+Full siblings can still arise by chance, but are not part of this single-position
+cohort calculation.
+
+The initial age composition is based on the stable age distribution. We use
+the actual census year labels returned by SPIP, rather than assuming that they
+start at one. The demographic adapter uses all ages explicitly recorded in the
+post-mortality census, including zero counts, and derives reproductive age limits
+from the positive reproductive schedules rather than from plotting defaults.
+
+```{r cohort-probability-simulation}
+library(CKMRpop)
+
+SPD <- CKMRpop::species_1_life_history
+ages <- 1:12
+SPD$`max-age` <- 12
+SPD$`male-prob-repro` <- as.numeric(ages >= 3 & ages <= 10)
+SPD$`fem-prob-repro` <- as.numeric(ages >= 6)
+SPD$`male-asrp` <- ifelse(ages >= 3 & ages <= 10, ages^2, 0)
+SPD$`fem-asrf` <- ifelse(ages >= 6, ages^2, 0)
+SPD$`male-surv-probs` <- ifelse(ages <= 3, 1, 0.85)
+SPD$`fem-surv-probs` <- ifelse(ages <= 6, 1, 0.85)
+SPD$`mate-fidelity` <- -1
+SPD$`number-of-years` <- 70
+SPD$`cohort-size` <- "const 1000"
+SPD$`discard-all` <- 0
+
+initial <- CKMRpop::leslie_from_spip(SPD, 1000)
+SPD$`initial-males` <- floor(initial$stable_age_distro_male)
+SPD$`initial-females` <- floor(initial$stable_age_distro_fem)
+
+set.seed(23)
+# Demography only: generate no genetic loci or genotype data.
+simulation_dir <- CKMRpop::run_spip(pars = SPD, allele_freqs = list())
+# No samples or pedigree matching are needed for this demographic calculation.
+census_postkill <- readr::read_tsv(
+  file.path(simulation_dir, "spip_postkill_census.tsv"),
+  show_col_types = FALSE
+)
+
+demography <- cohort_demography_from_spd(SPD, census_postkill, pop = 0)
+range(demography$years)
+demography$reproductive_ages
+
+cohort_result <- pedigree_cohort_probabilities(
+  demography, cA = 56, cB = 60, n = 3
+)
+cohort_probs <- cohort_result$cohort_probabilities
+
+# Each of the 30 positions (15 in each pedigree) must have total mass one.
+mass <- cohort_probs %>%
+  group_by(individual) %>%
+  summarise(probability = sum(probability))
+
+stopifnot(nrow(mass) == 30, all(abs(mass$probability - 1) < 1e-12))
+mass
+
+# Inspect the father's cohort distribution for A.
+cohort_probs %>%
+  filter(individual == "A-2")
+```
+
+The history check is deliberately conservative: for depth $n$, both sample
+cohorts must be at least the earliest recorded census year plus $n$ times the
+largest reproductive age. This keeps even the oldest possible ancestral birth
+cohort inside the recorded time window. An error gives the minimum acceptable
+sample cohort; if that exceeds the latest census year, the simulation must be
+extended or the requested depth reduced. No ancestry is silently truncated or
+renormalized at a historical boundary. A needed year with no reproductive
+contribution also produces an error.
+
+For this example, the census covers years 12--81, and the conservative minimum
+sample cohort at depth three is $12+3\times12=48$. The default sample cohorts
+56 and 60 therefore both have sufficient history.
+
+## Displaying unconditional cohort probabilities
+
+We can now pass the same demographic inputs to the pedigree plot. The bar
+outlines retain their sex- and generation-specific colors, while cell fills show
+unconditional cohort probabilities. White denotes zero and gold denotes one,
+using the same square-root color scale for every individual in both pedigrees.
+The square-root transformation makes small probabilities easier to see; it does
+not change the probabilities or normalize the colors separately within each bar.
+The sample birth cohorts each have probability one. These fills do not condition
+on sharing or non-sharing of ancestral individuals. If focal selections are also
+specified, their fuchsia fills take precedence without changing the probabilities.
+
+```{r cohort-probability-plot, fig.width=14, fig.height=9, out.width='100%', cache=FALSE}
+cohort_probability_plot <- draw_pedigree_and_cohorts(
+  demography = demography,
+  cA = 56, cB = 60, n = 3,
+  sexA = "M",
+  cohortBarBlackText = TRUE,
+  cohortBarBold = TRUE
+)
+cohort_probability_plot
+```
+
+For an untransformed scale from zero to one, set
+`probabilityFillTransform = "identity"` (the default is `"sqrt"`). For example:
+
+```{r cohort-probability-linear, fig.width=14, fig.height=9, out.width='100%', cache=FALSE}
+draw_pedigree_and_cohorts(
+  demography = demography,
+  cA = 56, cB = 60, n = 3,
+  sexA = "M",
+  cohortBarBlackText = TRUE,
+  cohortBarBold = TRUE,
+  probabilityFillTransform = "identity"
+)
+```
+
+
+
+
+
 
 Samples $A$ and $B$ are related to one another if there exist an individual with
 index $x$ in $A$'s pedigree that is the same individual as an individual with
@@ -588,11 +762,104 @@ ensure that the shared ancestors are strictly the most recent shared ancestors:
 in order to have an $\HH{2}{2}$
 relationship, the pair must share a grandparent; however, they cannot also
 share a parent.  Said another way: in order to have an $\HH{a}{b}$ relationship,
-a pair cannot have any other $\HH{a^*}{b^*}$ or $\FF{a^*}{b^*}$ relationship
-where $a^*\leq a$, $b^*\leq b$, and at least one of $a^*<a$ or $b^*<b$ holds. To
+one of $A$'s ancestors $a$ generations back must be the same individual as one of
+$B$'s ancestors $b$ generations back, and $A$ and $B$ cannot have any other
+$\HH{a^*}{b^*}$ or $\FF{a^*}{b^*}$ relationship
+where $a^*\leq a$, $b^*\leq b$, and at least one of $a^*<a$ or $b^*<b$ holds. 
+
+# A simulation-based construction of the probabilities
+
+I have been trying to think through what this all means in terms of the probabilities
+that we would be computing.  I am settling on one way of thinking about the
+probabilities that are like expected frequencies in a simulation. 
+
+We can think of simulating lineages up each of the two pedigrees first.  We start
+by throwing a ball onto $A$ and a ball onto $B$. That ball stayes in that cell.
+Each of them has a little cannon that shoots two more balls: one into its father's
+cohort box and one into its mother's.  The probabilities of landing in any cohort
+are given the appropriate $p^x_k(c, c^*)$ probabilities.  This process continues to
+the top of each pedigree.  There is a big ol' joint probability function for where
+those balls end up.  $q_{Ax}(c)$ gives the marginal distribution for individual $x$
+in $A$'s pedigree.  It is just the marginal, but it is still useful.
+
+At the end of that simulation, we go about testing to see if any of the individuals
+in $A$'s pedigree are the same as the individuals in $B$'s pedigree.  We can do this
+starting from the cohort of the first-born sample, checking for any shared pedigree
+members at that cohort.  If there are any, we record it and then discard the rest of
+the simulation, cuz we are only keeping track of the first shared ancestor.  If there
+are not, then we go to the next earlier cohort and check for shared ancestors there.
+
+This might seem a little weird to be going up year by year this way, but it is the
+only way that seems like it is manageable to me.  If you think about actually following
+the individual lineage along and waiting for them to coalesce into shared ancestors
+you kind of lose sight of the fact that if one of the other lineages coalesced
+before the ones your are focusing on, you would have stopped following those other
+lineages.  So, going year by year through the cohorts actually seems like a good
+way to me to partition the space.
+
+Anyway, the general process when you are scanning through the results of each
+separate simulation of lineages at a particular cohort year $c$ goes like this:
+
+First check to see if there are any balls in any of the $c$-cohort cells corresponding to different
+lineages. If there is one cell with ball in $A$'s pedigree and one with a ball in $B$'s pedigree,
+then this is a _chance_ for them to share an ancestor.  In the simulation version you would
+look to see where the descendant's (if any) cohort-ball was and this would tell you
+about what was needed for the survival part of of that calculation.
+If each indiv in the pedigree has a descendant, then the time between them is the
+time that the shared parent needed to surive between the first and second born.  If
+only one indiv has a descendant, then it is like a POP calculation and we concern ourselves
+with the covariates of the first born and when it was sampled and whether that
+reduces its survival probability.  If neither has a descendant then the probability
+they are the same indiv is the self-identity prob which will typically be zero
+unless someone is doing a genetic mark-recapture as well as CKMR study.  At any rate,
+call the prob that the individuals that share the same cohort are actually the same
+individual for a particular pair $p$ of cells ($x$ and $y$ at cohort $c$) (one from $A$'s pedigree and one from
+$B$'s pedigree) as $I_p(c)$ (I for "identity").  Then, flip a Bernoulli r.v. $B_p$ with 
+success probability $I_p$.  If $B_p$ is 1  you declare a "hit" at pair $p$ and say that you
+have the relationship $S^x_y$.  Then you stop looking for other matches. Just go and
+simulate the next rep of balls on ancestors.
+
+$B_p=0$ with probability 
+$1-I_p(c)$ in which case you _don't_ have an identity between the two individuals and
+you will will continue looking for shared ancestors in cohort $c$.
+
+If you have gone through all the pairs of cells with balls in cohort $c$ and never
+ended up with $B_p=1$ for any of them, then you proceed to cohort $c-1$ and repeat
+the process.  
+
+
+If there
+are multiple balls at cohort level $c$ then there are multiple possible shared parents
+and it becomes important how one proceeds through the different pairs.  I think it 
+would be OK to start with comparing male lineage pairs going from most recent to most
+ancient.  The first pair to have $B_p=1$ gets declared the shared relationship
+and one stops and simulates a new set of balls in the cells.  
+
+What I like about this construction is that it help me think about what the conditional
+probabilities are along the way.  Most interestingly, a "hit" at $x$ and $y$ at
+cohort $c$ means that that rep won't reach any later cohorts.  There are two consequences:
+proceeding to cohort $c-1$ only happens if each of the possible lineages that
+could have coalesced are did not.  This means that the probability of proceeding
+to $c-1$ is something like $\prod (1 - I_p)$.  The other thing it means is that
+for the _ancestor_ $z$ of any $x$ or $y$, the cohort distribution $q_z(\cdots)$,
+conditional on no shared ancestors in $z$'s descendants is different than its
+marginal distribution.  In general, any of $z$'s cohort cells that are reachable from,
+say, $x$ at cohort $c$ will be a little bit smaller (roughly by a factor of
+$1- q_y(c)I^x_y$, I think.  But then they will have to be renormalized because
+we want the probability conditional on no shareing.
+
+Yikes! It is complex, but it seems that working backward over time like this
+is the way to go.  
+
+
+
+# Boneyard
+
+To
 formalize this idea, we introduce another notation $\NN{a}{b}$ which means that
 $A$ and $B$ do not share any ancestors at any generation levels $a^* \leq a$ before
 $A$ and $b^* \leq b$ generations before $B$.
+
 
 Operationally, the probabilities are calculated by working backward from the
 samples up through successive generation levels.  So for the case as illustrated
@@ -600,7 +867,7 @@ above, with $c_A<c_B$, we first note that $c_A \neq c_B$ so that $P(\HH{0}{0}) =
 At this point, we record $P\NN{0}{0}) = 1 - P(\HH{0}{0}) = 1$ and move on to the
 next possible generation level.  Because $B$ is from a later cohort than $A$, that next level
 is the one in which we increment the $b$ counter in $\HH{0}{0}$ by 1, landing us at
-$\HH{0}{1}$.  We then calculate $P(\HH{0}{1}) which is the probability of
+$\HH{0}{1}$.  We then calculate $P(\HH{0}{1})$ which is the probability of
 being a parent-offspring pair, which is a standard CKMR calculation, and we
 record...
 

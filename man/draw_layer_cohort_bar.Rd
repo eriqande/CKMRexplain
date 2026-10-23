@@ -13,7 +13,8 @@ draw_layer_cohort_bar(
   group = NULL,
   fontface = "plain",
   cellFill = NULL,
-  textColour = NULL
+  textColour = NULL,
+  cellProbability = NULL
 )
 }
 \arguments{
@@ -36,6 +37,10 @@ NA entries retain the bar's background. Cell fills are below separators/text.}
 
 \item{textColour}{Optional column name in BT containing per-cell text colours.
 NA entries use the bar's text colour.}
+
+\item{cellProbability}{Optional column name containing probabilities from zero to one.
+Adds a fill-mapped rectangle per cell below cellFill highlights. Supply a
+continuous fill scale on the containing plot to choose the palette and legend.}
 }
 \value{
 A list of ggplot2 layers, added to a plot with \code{+}.

@@ -10,7 +10,7 @@
 #' @inheritParams highlight_pedigree_cohorts
 #' @param CohortBoxTextPad Fraction of each cohort cell reserved on each edge.
 #' @param showCohorts Overlay possible cohorts on a pale reference pedigree.
-#' Defaults to TRUE if a focal individual, sample_times, or shared_H11 is specified,
+#' Defaults to TRUE if demography, a focal individual, sample_times, or shared_H11 is specified,
 #' otherwise FALSE.
 #' @param focalFill,reachableFill Background colours for focal cohort cells and
 #' their reachable ancestral cells. Focal numbers are black for contrast.
@@ -59,6 +59,17 @@
 #' This is a schematic of possibilities, not a confirmed relationship. Focal
 #' shading is controlled separately. Supplying this table shows cohort bars by default.
 #' @param sharedH11Linewidth Width of shared-ancestor and survival lines.
+#' @param demography Optional inputs from cohort_demography_from_spd(). Computes
+#' unconditional cohort probabilities for cA, cB, and n, overriding Am, Af, Mm,
+#' and Mf with the reproductive limits in these inputs. Fills use one probability
+#' scale across both pedigrees. Focal fills override probability shading;
+#' reachableFill is ignored in this mode. The reference bar is not shaded.
+#' @param probabilityFillLow,probabilityFillHigh Colours at probability zero and
+#' one. Values are never rescaled within individual bars.
+#' @param probabilityFillTransform Fill-scale transformation passed to ggplot2.
+#' Defaults to "sqrt" to make small probabilities visible; use "identity" for
+#' an untransformed zero-to-one scale. Transformations must be finite at zero
+#' and one. This affects colors only, not the calculated probabilities.
 #' @param showGuides Draw thin dashed vertical guides through each pedigree
 #' member, underneath all other layers.
 #' @param pedigreeColour Colour of pedigree outlines, labels and edges. NULL
@@ -81,7 +92,7 @@ draw_pedigree_and_cohorts <- function(
   xPosBar = 0, CohortBoxWidth = 1, CohortBoxTextPad = 0.1,
   xPosA = NULL, xPosB = NULL, xPedSep = 16,
   sexA = "F", sexB = "F", nodeWidth = NULL, nodeHeight = NULL,
-  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B) || !is.null(sample_times) || !is.null(shared_H11), showGrid = TRUE,
+  showCohorts = !is.null(demography) || !is.null(focal_indiv_A) || !is.null(focal_indiv_B) || !is.null(sample_times) || !is.null(shared_H11), showGrid = TRUE,
   maleColour = "#2166AC", femaleColour = "#B2182B", pedigreeColour = NULL,
   SampleSepFactor = 2, generationFade = 0.18, showGuides = TRUE,
   cohortBarLinewidth = 0.35, cohortBarBold = FALSE, generationPalette = "RdBu",
@@ -90,7 +101,9 @@ draw_pedigree_and_cohorts <- function(
   focalFill = "#FF00FF", reachableFill = "grey88",
   cohortBarBlackText = TRUE, sample_times = NULL,
   samplingArrowLinewidth = 1.4 * cohortBarLinewidth, samplingArrowColour = "orange",
-  shared_H11 = NULL, sharedH11Linewidth = 1.4 * cohortBarLinewidth
+  shared_H11 = NULL, sharedH11Linewidth = 1.4 * cohortBarLinewidth,
+  demography = NULL, probabilityFillLow = "white", probabilityFillHigh = "#E0A526",
+  probabilityFillTransform = "sqrt"
 ) {
   if (!is.numeric(generationFade) || length(generationFade) != 1L ||
       !is.finite(generationFade) || generationFade < 0 || generationFade > 1) {
@@ -116,6 +129,15 @@ draw_pedigree_and_cohorts <- function(
       stop("`generationPalette` must be a diverging ColorBrewer palette name or NULL.", call. = FALSE)
     }
   }
+  cohort_probabilities <- NULL
+  if (!is.null(demography)) {
+    cohort_probabilities <- pedigree_cohort_probabilities(demography, cA, cB, n)$cohort_probabilities
+    reproductive_ages <- demography$reproductive_ages
+    Am <- reproductive_ages$max_age[reproductive_ages$sex == "M"]
+    Af <- reproductive_ages$max_age[reproductive_ages$sex == "F"]
+    Mm <- reproductive_ages$min_age[reproductive_ages$sex == "M"]
+    Mf <- reproductive_ages$min_age[reproductive_ages$sex == "F"]
+  }
   layout <- layout_pedigree_and_cohorts(Am = Am, Af = Af, Mm = Mm, Mf = Mf,
     cA = cA, cB = cB, aA = aA, aB = aB, n = n, xPosBar = xPosBar,
     xPosA = xPosA, xPosB = xPosB, xPedSep = xPedSep,
@@ -124,6 +146,13 @@ draw_pedigree_and_cohorts <- function(
   layout <- highlight_pedigree_cohorts(layout,
     focal_indiv_A = focal_indiv_A, focal_cohort_A = focal_cohort_A,
     focal_indiv_B = focal_indiv_B, focal_cohort_B = focal_cohort_B)
+  if (!is.null(cohort_probabilities)) {
+    bars <- layout$cohort_bars
+    index <- match(paste(bars$tree, bars$index, bars$cohort),
+      paste(cohort_probabilities$tree, cohort_probabilities$index, cohort_probabilities$cohort))
+    if (anyNA(index)) stop("Cohort probabilities do not match the pedigree layout.", call. = FALSE)
+    layout$cohort_bars$probability <- cohort_probabilities$probability[index]
+  }
   sampling_arrows <- pedigree_sampling_arrows(layout, sample_times)
   if (!is.numeric(sharedH11Linewidth) || length(sharedH11Linewidth) != 1L ||
       !is.finite(sharedH11Linewidth) || sharedH11Linewidth <= 0) {
@@ -188,12 +217,13 @@ draw_pedigree_and_cohorts <- function(
           colour <- palette_colours[index]
         }
         bars$cell_fill <- ifelse(bars$focal, focalFill,
-          ifelse(bars$reachable, reachableFill, NA_character_))
+          if (!is.null(demography)) NA_character_ else ifelse(bars$reachable, reachableFill, NA_character_))
         bars$cell_text_colour <- ifelse(bars$focal | cohortBarBlackText, "black", colour)
         plot <- plot + draw_layer_cohort_bar(bars, pad = CohortBoxTextPad,
           colour = colour, fill = "white", group = "id",
           linewidth = cohortBarLinewidth, fontface = fontface,
-          cellFill = "cell_fill", textColour = "cell_text_colour")
+          cellFill = "cell_fill", textColour = "cell_text_colour",
+          cellProbability = if (!is.null(demography)) "probability" else NULL)
       }
     }
   }
@@ -207,11 +237,26 @@ draw_pedigree_and_cohorts <- function(
       inherit.aes = FALSE)
   }
   plot <- plot + pedigree_shared_H11_layers(layout, shared_relationships, sharedH11Linewidth)
+  if (!is.null(demography) && showCohorts) {
+    linear_fill <- identical(probabilityFillTransform, "identity")
+    probability_scale <- ggplot2::scale_fill_gradient(name = "Unconditional cohort probability",
+      low = probabilityFillLow, high = probabilityFillHigh, limits = c(0, 1),
+      transform = probabilityFillTransform,
+      breaks = if (linear_fill) seq(0, 1, by = 0.2) else c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 1),
+      labels = if (linear_fill) c("0", "0.2", "0.4", "0.6", "0.8", "1") else
+        c("0", "0.01", "0.05", "0.10", "0.25", "0.50", "1"),
+      guide = ggplot2::guide_colourbar(barwidth = grid::unit(110, "mm"),
+        barheight = grid::unit(3, "mm"), title.position = "top", title.hjust = 0.5))
+    if (any(!is.finite(probability_scale$transform(c(0, 1))))) {
+      stop("`probabilityFillTransform` must be finite at zero and one.", call. = FALSE)
+    }
+    plot <- plot + probability_scale
+  }
   plot +
     ggplot2::coord_fixed(ratio = layout$aspect_ratio, xlim = layout$xlim,
       ylim = layout$ylim, expand = FALSE) +
     ggplot2::theme_void() +
-    ggplot2::theme(legend.position = "none",
+    ggplot2::theme(legend.position = if (!is.null(demography) && showCohorts) "bottom" else "none",
       plot.background = ggplot2::element_rect(fill = "white", colour = NA),
       panel.background = ggplot2::element_rect(fill = "white", colour = NA),
       plot.margin = ggplot2::margin(8, 8, 8, 8))

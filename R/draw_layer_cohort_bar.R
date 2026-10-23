@@ -10,12 +10,16 @@
 #' NA entries retain the bar's background. Cell fills are below separators/text.
 #' @param textColour Optional column name in BT containing per-cell text colours.
 #' NA entries use the bar's text colour.
+#' @param cellProbability Optional column name containing probabilities from zero to one.
+#' Adds a fill-mapped rectangle per cell below cellFill highlights. Supply a
+#' continuous fill scale on the containing plot to choose the palette and legend.
 #' @return A list of ggplot2 layers, added to a plot with `+`.
 #' @md
 #' @export
 draw_layer_cohort_bar <- function(BT, pad = 0.05, colour = "black",
                                   fill = NA, linewidth = 0.18, group = NULL,
-                                  fontface = "plain", cellFill = NULL, textColour = NULL) {
+                                  fontface = "plain", cellFill = NULL, textColour = NULL,
+                                  cellProbability = NULL) {
   if (length(pad) != 1L || !is.finite(pad) || pad < 0 || pad >= 0.5) {
     stop("`pad` must be a fraction between 0 (inclusive) and 0.5 (exclusive).", call. = FALSE)
   }
@@ -24,11 +28,25 @@ draw_layer_cohort_bar <- function(BT, pad = 0.05, colour = "black",
     stop("`linewidth` must be one positive finite number.", call. = FALSE)
   }
   if (nrow(BT) == 0) return(list())
-  for (column in list(cellFill, textColour)) {
+  for (column in list(cellFill, textColour, cellProbability)) {
     if (!is.null(column) && (length(column) != 1L || !is.character(column) ||
         is.na(column) || !column %in% names(BT))) {
       stop("Cell styling columns must name existing columns in BT.", call. = FALSE)
     }
+  }
+  probability_background <- NULL
+  if (!is.null(cellProbability)) {
+    probabilities <- BT[[cellProbability]]
+    if (!is.numeric(probabilities) || any(!is.finite(probabilities)) ||
+        any(probabilities < 0 | probabilities > 1)) {
+      stop("Cell probabilities must be finite numbers between zero and one.", call. = FALSE)
+    }
+    probability_cells <- BT
+    probability_cells$.cohort_probability <- probabilities
+    probability_background <- ggplot2::geom_rect(data = probability_cells,
+      ggplot2::aes(xmin = xlo, xmax = xhi, ymin = ymid - 0.5,
+        ymax = ymid + 0.5, fill = .cohort_probability),
+      colour = NA, inherit.aes = FALSE)
   }
   groups <- if (is.null(group)) list(BT) else split(BT, BT[[group]])
   outlines <- do.call(rbind, lapply(groups, function(bar) {
@@ -57,8 +75,9 @@ draw_layer_cohort_bar <- function(BT, pad = 0.05, colour = "black",
     ggplot2::geom_rect(data = outlines,
       ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
       fill = fill, colour = colour, linewidth = linewidth, inherit.aes = FALSE),
+    probability_background,
     backgrounds,
-    if (length(backgrounds)) ggplot2::geom_rect(data = outlines,
+    if (length(backgrounds) || !is.null(probability_background)) ggplot2::geom_rect(data = outlines,
       ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
       fill = NA, colour = colour, linewidth = linewidth, inherit.aes = FALSE) else NULL,
     ggplot2::geom_segment(data = BT,

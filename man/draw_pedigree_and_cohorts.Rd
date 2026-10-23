@@ -24,8 +24,8 @@ draw_pedigree_and_cohorts(
   sexB = "F",
   nodeWidth = NULL,
   nodeHeight = NULL,
-  showCohorts = !is.null(focal_indiv_A) || !is.null(focal_indiv_B) ||
-    !is.null(sample_times) || !is.null(shared_H11),
+  showCohorts = !is.null(demography) || !is.null(focal_indiv_A) ||
+    !is.null(focal_indiv_B) || !is.null(sample_times) || !is.null(shared_H11),
   showGrid = TRUE,
   maleColour = "#2166AC",
   femaleColour = "#B2182B",
@@ -47,7 +47,11 @@ draw_pedigree_and_cohorts(
   samplingArrowLinewidth = 1.4 * cohortBarLinewidth,
   samplingArrowColour = "orange",
   shared_H11 = NULL,
-  sharedH11Linewidth = 1.4 * cohortBarLinewidth
+  sharedH11Linewidth = 1.4 * cohortBarLinewidth,
+  demography = NULL,
+  probabilityFillLow = "white",
+  probabilityFillHigh = "#E0A526",
+  probabilityFillTransform = "sqrt"
 )
 }
 \arguments{
@@ -78,7 +82,7 @@ other tree; if both are NULL the trees are placed to the right of the reference.
 from the horizontal and vertical spacing.}
 
 \item{showCohorts}{Overlay possible cohorts on a pale reference pedigree.
-Defaults to TRUE if a focal individual, sample_times, or shared_H11 is specified,
+Defaults to TRUE if demography, a focal individual, sample_times, or shared_H11 is specified,
 otherwise FALSE.}
 
 \item{showGrid}{Draw horizontal grid lines at cohort multiples of five,
@@ -160,6 +164,20 @@ This is a schematic of possibilities, not a confirmed relationship. Focal
 shading is controlled separately. Supplying this table shows cohort bars by default.}
 
 \item{sharedH11Linewidth}{Width of shared-ancestor and survival lines.}
+
+\item{demography}{Optional inputs from cohort_demography_from_spd(). Computes
+unconditional cohort probabilities for cA, cB, and n, overriding Am, Af, Mm,
+and Mf with the reproductive limits in these inputs. Fills use one probability
+scale across both pedigrees. Focal fills override probability shading;
+reachableFill is ignored in this mode. The reference bar is not shaded.}
+
+\item{probabilityFillLow, probabilityFillHigh}{Colours at probability zero and
+one. Values are never rescaled within individual bars.}
+
+\item{probabilityFillTransform}{Fill-scale transformation passed to ggplot2.
+Defaults to "sqrt" to make small probabilities visible; use "identity" for
+an untransformed zero-to-one scale. Transformations must be finite at zero
+and one. This affects colors only, not the calculated probabilities.}
 }
 \value{
 A ggplot object. Use \code{\link[=layout_pedigree_and_cohorts]{layout_pedigree_and_cohorts()}} to obtain the
